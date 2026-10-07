@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { verifyCronSecret } from '../_middleware';
 
 /**
  * Vercel Function to automatically finalize rounds when they crash
@@ -14,6 +15,10 @@ export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ) {
+  if (!verifyCronSecret(req, res)) {
+    return;
+  }
+
   try {
     // TODO: Implement contract interaction
     // 1. Connect to Stellar network
@@ -34,4 +39,3 @@ export default async function handler(
     });
   }
 }
-
