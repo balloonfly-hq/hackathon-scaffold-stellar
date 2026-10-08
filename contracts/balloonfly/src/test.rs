@@ -328,6 +328,108 @@ fn test_double_cash_out() {
 }
 
 #[test]
+fn test_cash_out_unauthorized() {
+    let env = Env::default();
+    let (_admin, client) = create_test_contract(&env);
+
+    let round_id = 1u64;
+    let server_seed = generate_seed(&env, 12345);
+    let server_seed_hash = hash_seed(&env, &server_seed);
+    let crash_multiplier = 500u64;
+    client.create_round(&round_id, &server_seed_hash, &60u64);
+
+    let player1 = Address::generate(&env);
+    let player2 = Address::generate(&env);
+    let bet_amount = 100_000_000i128;
+    let client_seed = generate_seed(&env, 111);
+    let bet_id = client.place_bet(&player1, &round_id, &bet_amount, &client_seed);
+
+    client.start_round(&round_id, &server_seed, &crash_multiplier);
+
+    // Player 2 attempts to cash out Player 1's bet - should error Unauthorized
+    let result = client.try_cash_out(&player2, &bet_id, &200);
+    assert_eq!(result.err(), Some(Ok(Error::Unauthorized)));
+}
+
+#[test]
+fn test_cash_out_bet_not_found() {
+    let env = Env::default();
+    let (_admin, client) = create_test_contract(&env);
+
+    let player = Address::generate(&env);
+    let unknown_bet_id = 9999u64;
+
+    // Unknown bet ID - should error BetNotFound
+    let result = client.try_cash_out(&player, &unknown_bet_id, &200);
+    assert_eq!(result.err(), Some(Ok(Error::BetNotFound)));
+}
+
+#[test]
+fn test_cash_out_invalid_round_status() {
+    let env = Env::default();
+    let (_admin, client) = create_test_contract(&env);
+
+    let round_id = 1u64;
+    let server_seed_hash = hash_seed(&env, &generate_seed(&env, 12345));
+    client.create_round(&round_id, &server_seed_hash, &60u64);
+
+    let player = Address::generate(&env);
+    let bet_amount = 100_000_000i128;
+    let client_seed = generate_seed(&env, 111);
+    let bet_id = client.place_bet(&player, &round_id, &bet_amount, &client_seed);
+
+    // Round is in Waiting status, not InProgress - should error InvalidRoundStatus
+    let result = client.try_cash_out(&player, &bet_id, &200);
+    assert_eq!(result.err(), Some(Ok(Error::InvalidRoundStatus)));
+}
+
+#[test]
+fn test_cash_out_invalid_multiplier_below_minimum() {
+    let env = Env::default();
+    let (_admin, client) = create_test_contract(&env);
+
+    let round_id = 1u64;
+    let server_seed = generate_seed(&env, 12345);
+    let server_seed_hash = hash_seed(&env, &server_seed);
+    let crash_multiplier = 500u64;
+    client.create_round(&round_id, &server_seed_hash, &60u64);
+
+    let player = Address::generate(&env);
+    let bet_amount = 100_000_000i128;
+    let client_seed = generate_seed(&env, 111);
+    let bet_id = client.place_bet(&player, &round_id, &bet_amount, &client_seed);
+
+    client.start_round(&round_id, &server_seed, &crash_multiplier);
+
+    // Multiplier 99 is below minimum 100 (1.00x) - should error InvalidMultiplier
+    let result = client.try_cash_out(&player, &bet_id, &99);
+    assert_eq!(result.err(), Some(Ok(Error::InvalidMultiplier)));
+}
+
+#[test]
+fn test_cash_out_exact_crash_multiplier() {
+    let env = Env::default();
+    let (_admin, client) = create_test_contract(&env);
+
+    let round_id = 1u64;
+    let server_seed = generate_seed(&env, 12345);
+    let server_seed_hash = hash_seed(&env, &server_seed);
+    let crash_multiplier = 200u64; // 2.00x
+    client.create_round(&round_id, &server_seed_hash, &60u64);
+
+    let player = Address::generate(&env);
+    let bet_amount = 100_000_000i128;
+    let client_seed = generate_seed(&env, 111);
+    let bet_id = client.place_bet(&player, &round_id, &bet_amount, &client_seed);
+
+    client.start_round(&round_id, &server_seed, &crash_multiplier);
+
+    // Exact equality with crash multiplier (200 == 200) - should error AlreadyCrashed
+    let result = client.try_cash_out(&player, &bet_id, &crash_multiplier);
+    assert_eq!(result.err(), Some(Ok(Error::AlreadyCrashed)));
+}
+
+#[test]
 fn test_finalize_round() {
     let env = Env::default();
     let (_admin, client) = create_test_contract(&env);
