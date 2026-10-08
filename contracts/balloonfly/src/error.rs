@@ -34,5 +34,7 @@ pub enum Error {
     RoundAlreadyActive = 14,
     /// No active round found
     NoActiveRound = 15,
+    /// Betting window has not closed yet
+    BettingWindowNotClosed = 16,
 }
 

@@ -93,6 +93,9 @@ fn test_start_round() {
     let crash_multiplier = 250u64; // 2.50x
 
     client.create_round(&round_id, &server_seed_hash, &60u64);
+    // Betting window (60s from create at 1_000_000) has closed
+    env.ledger().set_timestamp(1_000_060);
+
     client.start_round(&round_id, &server_seed, &crash_multiplier);
 
     let round = client.get_round(&round_id);
@@ -115,6 +118,9 @@ fn test_start_round_wrong_seed() {
     client.create_round(&round_id, &server_seed_hash, &60u64);
     
     // This should error because seed doesn't match hash
+    // Betting window (60s from create at 1_000_000) has closed
+    env.ledger().set_timestamp(1_000_060);
+
     let result = client.try_start_round(&round_id, &wrong_seed, &crash_multiplier);
     assert_eq!(result.err(), Some(Ok(Error::InvalidServerSeedHash)));
 }
@@ -130,6 +136,9 @@ fn test_start_round_invalid_multiplier() {
     let crash_multiplier = 50u64; // Too low! Minimum is 100 (1.00x)
 
     client.create_round(&round_id, &server_seed_hash, &60u64);
+    // Betting window (60s from create at 1_000_000) has closed
+    env.ledger().set_timestamp(1_000_060);
+
     let result = client.try_start_round(&round_id, &server_seed, &crash_multiplier);
     assert_eq!(result.err(), Some(Ok(Error::InvalidMultiplier)));
 }
@@ -227,6 +236,9 @@ fn test_place_bet_after_start() {
     let server_seed = generate_seed(&env, 12345);
     let server_seed_hash = hash_seed(&env, &server_seed);
     client.create_round(&round_id, &server_seed_hash, &60u64);
+    // Betting window (60s from create at 1_000_000) has closed
+    env.ledger().set_timestamp(1_000_060);
+
     client.start_round(&round_id, &server_seed, &250);
 
     let player = Address::generate(&env);
@@ -257,6 +269,9 @@ fn test_cash_out() {
     let bet_id = client.place_bet(&player, &round_id, &bet_amount, &client_seed);
 
     // Start round
+    // Betting window (60s from create at 1_000_000) has closed
+    env.ledger().set_timestamp(1_000_060);
+
     client.start_round(&round_id, &server_seed, &crash_multiplier);
 
     // Cash out at 2.00x
@@ -294,6 +309,9 @@ fn test_cash_out_after_crash() {
     let client_seed = generate_seed(&env, 111);
     let bet_id = client.place_bet(&player, &round_id, &bet_amount, &client_seed);
 
+    // Betting window (60s from create at 1_000_000) has closed
+    env.ledger().set_timestamp(1_000_060);
+
     client.start_round(&round_id, &server_seed, &crash_multiplier);
 
     // Try to cash out at 2.50x when crash is at 2.00x - should error
@@ -316,6 +334,9 @@ fn test_double_cash_out() {
     let bet_amount = 100_000_000i128;
     let client_seed = generate_seed(&env, 111);
     let bet_id = client.place_bet(&player, &round_id, &bet_amount, &client_seed);
+
+    // Betting window (60s from create at 1_000_000) has closed
+    env.ledger().set_timestamp(1_000_060);
 
     client.start_round(&round_id, &server_seed, &crash_multiplier);
 
@@ -343,6 +364,9 @@ fn test_cash_out_unauthorized() {
     let bet_amount = 100_000_000i128;
     let client_seed = generate_seed(&env, 111);
     let bet_id = client.place_bet(&player1, &round_id, &bet_amount, &client_seed);
+
+    // Betting window (60s from create at 1_000_000) has closed
+    env.ledger().set_timestamp(1_000_060);
 
     client.start_round(&round_id, &server_seed, &crash_multiplier);
 
@@ -399,6 +423,9 @@ fn test_cash_out_invalid_multiplier_below_minimum() {
     let client_seed = generate_seed(&env, 111);
     let bet_id = client.place_bet(&player, &round_id, &bet_amount, &client_seed);
 
+    // Betting window (60s from create at 1_000_000) has closed
+    env.ledger().set_timestamp(1_000_060);
+
     client.start_round(&round_id, &server_seed, &crash_multiplier);
 
     // Multiplier 99 is below minimum 100 (1.00x) - should error InvalidMultiplier
@@ -422,6 +449,9 @@ fn test_cash_out_exact_crash_multiplier() {
     let client_seed = generate_seed(&env, 111);
     let bet_id = client.place_bet(&player, &round_id, &bet_amount, &client_seed);
 
+    // Betting window (60s from create at 1_000_000) has closed
+    env.ledger().set_timestamp(1_000_060);
+
     client.start_round(&round_id, &server_seed, &crash_multiplier);
 
     // Exact equality with crash multiplier (200 == 200) - should error AlreadyCrashed
@@ -438,6 +468,9 @@ fn test_finalize_round() {
     let server_seed = generate_seed(&env, 12345);
     let server_seed_hash = hash_seed(&env, &server_seed);
     client.create_round(&round_id, &server_seed_hash, &60u64);
+    // Betting window (60s from create at 1_000_000) has closed
+    env.ledger().set_timestamp(1_000_060);
+
     client.start_round(&round_id, &server_seed, &250);
 
     let next_server_seed = generate_seed(&env, 54321);
@@ -476,6 +509,9 @@ fn test_cannot_create_two_active_rounds() {
     assert_eq!(result.err(), Some(Ok(Error::RoundAlreadyActive)));
     
     // After finalizing first round, should be able to create second
+    // Betting window (60s from create at 1_000_000) has closed
+    env.ledger().set_timestamp(1_000_060);
+
     client.start_round(&round_id_1, &server_seed_1, &250);
     let next_server_seed = generate_seed(&env, 99999);
     let next_server_seed_hash = hash_seed(&env, &next_server_seed);
@@ -567,6 +603,9 @@ fn test_payout_calculation_accuracy() {
     let client_seed = generate_seed(&env, 111);
     let bet_id = client.place_bet(&player, &round_id, &bet_amount, &client_seed);
 
+    // Betting window (60s from create at 1_000_000) has closed
+    env.ledger().set_timestamp(1_000_060);
+
     client.start_round(&round_id, &server_seed, &1000); // Crash at 10.00x
 
     // Cash out at 3.50x
@@ -581,3 +620,32 @@ fn test_payout_calculation_accuracy() {
     assert_eq!(pool.total_house_earnings, 52_500_000i128); // 3% of 175 XLM
 }
 
+
+#[test]
+fn test_start_round_enforces_betting_window() {
+    let env = Env::default();
+    let (_admin, client) = create_test_contract(&env);
+
+    let round_id = 1u64;
+    let server_seed = generate_seed(&env, 12345);
+    let server_seed_hash = hash_seed(&env, &server_seed);
+    let crash_multiplier = 250u64;
+
+    client.create_round(&round_id, &server_seed_hash, &60u64);
+
+    // Starting before the 60-second betting window closes must fail.
+    let result = client.try_start_round(&round_id, &server_seed, &crash_multiplier);
+    assert_eq!(result.err(), Some(Ok(Error::BettingWindowNotClosed)));
+
+    let round = client.get_round(&round_id);
+    assert_eq!(round.status, RoundStatus::Waiting);
+    assert_eq!(round.started_at, 0);
+
+    // At the window boundary the same call succeeds.
+    env.ledger().set_timestamp(1_000_060);
+    client.start_round(&round_id, &server_seed, &crash_multiplier);
+
+    let round = client.get_round(&round_id);
+    assert_eq!(round.status, RoundStatus::InProgress);
+    assert_eq!(round.started_at, 1_000_060);
+}

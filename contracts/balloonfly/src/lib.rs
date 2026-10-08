@@ -116,6 +116,14 @@ impl BalloonFlyContract {
             return Err(Error::InvalidRoundStatus);
         }
 
+        // Enforce the betting window: the round cannot start until the
+        // advertised window has closed (the same predicate can_start_round
+        // reports). Otherwise an admin could cut off the window or start
+        // late and betting_window_end would be meaningless.
+        if env.ledger().timestamp() < round.betting_window_end {
+            return Err(Error::BettingWindowNotClosed);
+        }
+
         // Verify server seed matches hash (CRITICAL SECURITY)
         let server_seed_bytes: Bytes = server_seed.into();
         let calculated_hash = env.crypto().sha256(&server_seed_bytes);
