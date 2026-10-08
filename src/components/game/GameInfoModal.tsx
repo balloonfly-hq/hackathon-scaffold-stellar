@@ -6,7 +6,6 @@ interface GameInfoModalProps {
   onClose: () => void;
   pool: Pool | null;
   formatXLM: (stroops: bigint) => string;
-  totalLikes?: number;
 }
 
 const GameInfoModal: React.FC<GameInfoModalProps> = ({
@@ -14,7 +13,6 @@ const GameInfoModal: React.FC<GameInfoModalProps> = ({
   onClose,
   pool,
   formatXLM,
-  totalLikes = 3009
 }) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -23,19 +21,19 @@ const GameInfoModal: React.FC<GameInfoModalProps> = ({
       setIsFullscreen(!!document.fullscreenElement);
     };
 
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
   }, []);
 
   const handleFullscreen = () => {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(err => {
+      document.documentElement.requestFullscreen().catch((err) => {
         console.error("Error attempting to enable fullscreen:", err);
       });
     } else {
-      document.exitFullscreen().catch(err => {
+      document.exitFullscreen().catch((err) => {
         console.error("Error attempting to exit fullscreen:", err);
       });
     }
@@ -59,7 +57,7 @@ const GameInfoModal: React.FC<GameInfoModalProps> = ({
           bottom: 0,
           background: "rgba(0, 0, 0, 0.7)",
           zIndex: 998,
-          backdropFilter: "blur(4px)"
+          backdropFilter: "blur(4px)",
         }}
       />
 
@@ -78,26 +76,31 @@ const GameInfoModal: React.FC<GameInfoModalProps> = ({
           zIndex: 999,
           display: "flex",
           flexDirection: "column",
-          boxShadow: "0 20px 60px rgba(0, 0, 0, 0.5)"
+          boxShadow: "0 20px 60px rgba(0, 0, 0, 0.5)",
         }}
       >
         {/* Header */}
-        <div style={{
-          padding: "20px",
-          borderBottom: "1px solid #2a2d3e",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center"
-        }}>
-          <h3 style={{
-            margin: 0,
-            fontSize: "18px",
-            fontWeight: 700,
-            color: "#fff"
-          }}>
+        <div
+          style={{
+            padding: "20px",
+            borderBottom: "1px solid #2a2d3e",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <h3
+            style={{
+              margin: 0,
+              fontSize: "18px",
+              fontWeight: 700,
+              color: "#fff",
+            }}
+          >
             Game Information
           </h3>
           <button
+            type="button"
             onClick={onClose}
             style={{
               background: "transparent",
@@ -112,7 +115,7 @@ const GameInfoModal: React.FC<GameInfoModalProps> = ({
               alignItems: "center",
               justifyContent: "center",
               borderRadius: "4px",
-              transition: "all 0.2s"
+              transition: "all 0.2s",
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.background = "rgba(239, 68, 68, 0.1)";
@@ -128,99 +131,79 @@ const GameInfoModal: React.FC<GameInfoModalProps> = ({
         </div>
 
         {/* Content */}
-        <div style={{
-          padding: "20px",
-          display: "flex",
-          flexDirection: "column",
-          gap: "20px"
-        }}>
+        <div
+          style={{
+            padding: "20px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "20px",
+          }}
+        >
           {/* Game Margin */}
           <div>
-            <label style={{
-              display: "block",
-              fontSize: "12px",
-              color: "#8b8fa3",
-              marginBottom: "8px",
-              fontWeight: 600
-            }}>
+            <label
+              style={{
+                display: "block",
+                fontSize: "12px",
+                color: "#8b8fa3",
+                marginBottom: "8px",
+                fontWeight: 600,
+              }}
+            >
               Game Margin
             </label>
-            <div style={{
-              background: "#252837",
-              padding: "12px 16px",
-              borderRadius: "8px",
-              fontSize: "18px",
-              fontWeight: 700,
-              color: "#8b5cf6",
-              border: "1px solid #2a2d3e"
-            }}>
+            <div
+              style={{
+                background: "#252837",
+                padding: "12px 16px",
+                borderRadius: "8px",
+                fontSize: "18px",
+                fontWeight: 700,
+                color: "#8b5cf6",
+                border: "1px solid #2a2d3e",
+              }}
+            >
               {gameMargin}%
             </div>
           </div>
 
           {/* House Earnings */}
           <div>
-            <label style={{
-              display: "block",
-              fontSize: "12px",
-              color: "#8b8fa3",
-              marginBottom: "8px",
-              fontWeight: 600
-            }}>
+            <label
+              style={{
+                display: "block",
+                fontSize: "12px",
+                color: "#8b8fa3",
+                marginBottom: "8px",
+                fontWeight: 600,
+              }}
+            >
               House Earnings
             </label>
-            <div style={{
-              background: "#252837",
-              padding: "12px 16px",
-              borderRadius: "8px",
-              fontSize: "18px",
-              fontWeight: 700,
-              color: "#10b981",
-              border: "1px solid #2a2d3e"
-            }}>
-              {pool ? formatXLM(pool.total_house_earnings) : "0.00"} XLM
-            </div>
-          </div>
-
-          {/* Total Likes */}
-          <div>
-            <label style={{
-              display: "block",
-              fontSize: "12px",
-              color: "#8b8fa3",
-              marginBottom: "8px",
-              fontWeight: 600
-            }}>
-              Total Likes
-            </label>
-            <div style={{
-              background: "#252837",
-              padding: "12px 16px",
-              borderRadius: "8px",
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              border: "1px solid #2a2d3e"
-            }}>
-              <span style={{ fontSize: "20px" }}>👍</span>
-              <span style={{
+            <div
+              style={{
+                background: "#252837",
+                padding: "12px 16px",
+                borderRadius: "8px",
                 fontSize: "18px",
                 fontWeight: 700,
-                color: "#fff"
-              }}>
-                {totalLikes.toLocaleString()}
-              </span>
+                color: "#10b981",
+                border: "1px solid #2a2d3e",
+              }}
+            >
+              {pool ? formatXLM(pool.total_house_earnings) : "0.00"} XLM
             </div>
           </div>
 
           {/* Fullscreen Button */}
           <button
+            type="button"
             onClick={handleFullscreen}
             style={{
               width: "100%",
               padding: "14px",
-              background: isFullscreen 
-                ? "rgba(239, 68, 68, 0.2)" 
+              background: isFullscreen
+                ? "rgba(239, 68, 68, 0.2)"
                 : "linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)",
               border: `1px solid ${isFullscreen ? "#EF4444" : "transparent"}`,
               borderRadius: "8px",
@@ -232,12 +215,13 @@ const GameInfoModal: React.FC<GameInfoModalProps> = ({
               alignItems: "center",
               justifyContent: "center",
               gap: "8px",
-              transition: "all 0.2s"
+              transition: "all 0.2s",
             }}
             onMouseEnter={(e) => {
               if (!isFullscreen) {
                 e.currentTarget.style.transform = "translateY(-2px)";
-                e.currentTarget.style.boxShadow = "0 8px 20px rgba(139, 92, 246, 0.3)";
+                e.currentTarget.style.boxShadow =
+                  "0 8px 20px rgba(139, 92, 246, 0.3)";
               }
             }}
             onMouseLeave={(e) => {
@@ -262,14 +246,16 @@ const GameInfoModal: React.FC<GameInfoModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div style={{
-          padding: "16px 20px",
-          borderTop: "1px solid #2a2d3e",
-          textAlign: "center",
-          fontSize: "11px",
-          color: "#8b8fa3"
-        }}>
-          Powered by <strong style={{ color: "#8b5cf6" }}>DeegaLabs</strong>
+        <div
+          style={{
+            padding: "16px 20px",
+            borderTop: "1px solid #2a2d3e",
+            textAlign: "center",
+            fontSize: "11px",
+            color: "#8b8fa3",
+          }}
+        >
+          Powered by <strong style={{ color: "#8b5cf6" }}>Stellar</strong>
         </div>
       </div>
     </>
@@ -277,4 +263,3 @@ const GameInfoModal: React.FC<GameInfoModalProps> = ({
 };
 
 export default GameInfoModal;
-
