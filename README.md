@@ -10,6 +10,7 @@ A provably fair crash game built on Stellar blockchain using Scaffold Stellar.
 ## 🎯 What is BalloonFly?
 
 BalloonFly is a multiplayer crash-style betting game where:
+
 - 🎈 Players place bets before the balloon takes off
 - 📈 The multiplier grows continuously as the balloon rises
 - 💰 Players can cash out at any moment to secure their winnings
@@ -19,12 +20,15 @@ BalloonFly is a multiplayer crash-style betting game where:
 ## ✨ Features
 
 ### 🔐 Provably Fair
+
 Every round is cryptographically verifiable using:
+
 - Server seed (hashed and published before round)
 - Client seeds (from first 3 players)
 - On-chain verification available for all rounds
 
 ### 🚀 Built with Scaffold Stellar
+
 - ✅ Rust smart contracts compiled to WebAssembly (Soroban)
 - ✅ Auto-generated TypeScript bindings
 - ✅ Stellar Wallet Kit integration
@@ -32,6 +36,7 @@ Every round is cryptographically verifiable using:
 - ✅ Hot reload for contract changes
 
 ### 🎮 Real-time Gameplay
+
 - Live multiplier updates
 - Real-time bet tracking
 - Instant cash-outs
@@ -82,6 +87,7 @@ npm start
 ```
 
 This will:
+
 1. 🐳 Start local Stellar network (Docker)
 2. 🦀 Compile Rust contract to WASM
 3. 🚀 Deploy contract to local network
@@ -122,6 +128,7 @@ npm run format     # Format code with Prettier
 ### Smart Contract Development
 
 The contract is in `contracts/balloonfly/`. Any changes trigger:
+
 1. Auto-recompilation
 2. Auto-deployment
 3. Client regeneration
@@ -133,10 +140,9 @@ The contract is in `contracts/balloonfly/`. Any changes trigger:
 # Run contract tests
 cd contracts/balloonfly
 cargo test
-
-# Run integration tests
-npm test
 ```
+
+> **Note:** The contract test suite runs via Cargo. The frontend currently does not include an integration test suite.
 
 ## 🌐 Deployment
 
@@ -170,6 +176,7 @@ Update `environments.toml` for production network and follow the same steps with
 ## 🤝 Contributing
 
 Contributions are welcome! Please:
+
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
