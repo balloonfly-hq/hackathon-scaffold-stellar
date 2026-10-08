@@ -47,3 +47,6 @@ src/contracts/*
 !src/contracts/util.ts
 # Allow balloonfly contract import for deployment
 !src/contracts/balloonfly.ts
+branch_structure.json
+temp_auto_push.bat
+temp_interactive_push.bat
