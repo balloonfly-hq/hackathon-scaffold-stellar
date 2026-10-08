@@ -213,11 +213,12 @@ export interface Client {
    * Construct and simulate a place_bet transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    * Place a bet in the current round
    * 
-   * Security:
-   * - Checks player balance
-   * - Validates bet amount (min/max)
-   * - Prevents betting after round started
-   * - Uses token transfer for XLM
+   * Validation & Security:
+   * - Requires player authorization
+   * - Verifies round is in Waiting status
+   * - Validates bet amount within bounds (1 XLM to 1000 XLM)
+   * - Prevents duplicate bets by the same player in this round
+   * - Note: Token transfer is assumed to be handled externally (player balance is not checked on-chain)
    */
   place_bet: ({player, round_id, amount, client_seed}: {player: string, round_id: u64, amount: i128, client_seed: Buffer}, options?: {
     /**
@@ -240,12 +241,15 @@ export interface Client {
    * Construct and simulate a cash_out transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    * Cash out a bet at current multiplier
    * 
-   * Security:
-   * - Verifies bet ownership
-   * - Checks bet is active
-   * - Validates multiplier hasn't crashed
-   * - Calculates payout with house edge
-   * - Prevents re-entry
+   * Validation & Security:
+   * - Requires player authorization
+   * - Verifies bet ownership (`bet.player == player`)
+   * - Verifies bet is currently Active (prevents multiple cash outs)
+   * - Verifies round is currently InProgress
+   * - Verifies multiplier has not reached or exceeded crash multiplier
+   * - Validates multiplier is at least 100 (1.00x minimum)
+   * - Calculates net payout deducting 3% house edge
+   * - Note: Multiplier is supplied by caller; payout token transfer is assumed to be handled externally
    */
   cash_out: ({player, bet_id, current_multiplier}: {player: string, bet_id: u64, current_multiplier: u64}, options?: {
     /**
@@ -268,12 +272,12 @@ export interface Client {
    * Construct and simulate a finalize_round transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    * Finalize the round (admin only)
    * 
-   * Security:
-   * - Only admin can finalize
-   * - Verifies round is in progress
-   * - Marks all uncashed bets as lost
-   * - Records final stats
-   * - Automatically creates next round
+   * Validation & Security:
+   * - Requires admin authorization
+   * - Verifies round is currently InProgress
+   * - Transitions round status to Ended with timestamp
+   * - Automatically creates next round with next_server_seed_hash in Waiting status
+   * - Note: Does not mutate uncashed bets in storage (uncashed bets remain un-cashed)
    */
   finalize_round: ({round_id, next_server_seed_hash, betting_window_seconds}: {round_id: u64, next_server_seed_hash: Buffer, betting_window_seconds: u64}, options?: {
     /**
