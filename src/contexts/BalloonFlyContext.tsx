@@ -15,6 +15,14 @@ interface BalloonFlyContextType {
   cashOut: () => Promise<void>;
   fetchRoundDetails: (roundId: bigint) => Promise<Round | null>;
   initializeFirstRound: () => Promise<void>;
+  betAmount: number;
+  setBetAmount: (amount: number) => void;
+  autoBetEnabled: boolean;
+  setAutoBetEnabled: (enabled: boolean) => void;
+  autoCashOutEnabled: boolean;
+  setAutoCashOutEnabled: (enabled: boolean) => void;
+  autoCashOutMultiplier: number;
+  setAutoCashOutMultiplier: (mult: number) => void;
   formatXLM: (stroops: bigint) => string;
   multiplierToNumber: (mult: bigint) => number;
 }
@@ -41,4 +49,3 @@ export const useBalloonFlyContext = () => {
 
 // Re-export types
 export type { Round, Bet, Pool, BetStatus, RoundStatus };
-
