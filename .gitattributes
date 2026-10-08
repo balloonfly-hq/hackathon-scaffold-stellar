@@ -1,2 +1,2 @@
 Cargo.lock text -merge eol=lf linguist-generated=true -diff
-package-lock.json linguist-generated=true -diff
+pnpm-lock.yaml linguist-generated=true -diff
