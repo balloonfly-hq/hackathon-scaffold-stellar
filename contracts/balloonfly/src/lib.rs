@@ -216,10 +216,12 @@ impl BalloonFlyContract {
     /// - Verifies bet ownership (`bet.player == player`)
     /// - Verifies bet is currently Active (prevents multiple cash outs)
     /// - Verifies round is currently InProgress
+    /// - Derives the multiplier on-chain from elapsed time via the documented curve
     /// - Verifies multiplier has not reached or exceeded crash multiplier
     /// - Validates multiplier is at least 100 (1.00x minimum)
-    /// - Calculates net payout deducting 3% house edge
-    /// - Note: Multiplier is supplied by caller; payout token transfer is assumed to be handled externally
+    /// - Rejects a caller-supplied multiplier above the derived value
+    /// - Calculates net payout at the derived multiplier deducting 3% house edge
+    /// - Note: Payout token transfer is assumed to be handled externally
     pub fn cash_out(
         env: Env,
         player: Address,
@@ -247,6 +249,23 @@ impl BalloonFlyContract {
             return Err(Error::InvalidRoundStatus);
         }
 
+        // Derive the multiplier on-chain from the elapsed round time using
+        // the documented curve (same curve the frontend simulates):
+        //   multiplier(x100) = 100 + t^1.55 * 1.6, t = now - round.started_at
+        // This keeps the caller from claiming crash_multiplier - 1 payout
+        // one second after start_round.
+        let elapsed = env
+            .ledger()
+            .timestamp()
+            .saturating_sub(round.started_at);
+        let derived_multiplier = curve_multiplier_x100(elapsed);
+
+        // If the curve has already reached the crash point the round is
+        // effectively over regardless of what the caller claims.
+        if derived_multiplier >= round.crash_multiplier {
+            return Err(Error::AlreadyCrashed);
+        }
+
         // Verify multiplier hasn't crashed yet
         if current_multiplier >= round.crash_multiplier {
             return Err(Error::AlreadyCrashed);
@@ -257,15 +276,21 @@ impl BalloonFlyContract {
             return Err(Error::InvalidMultiplier);
         }
 
-        // Calculate payout with house edge (3%)
+        // The caller-supplied multiplier must not exceed the on-chain
+        // derived value.
+        if current_multiplier > derived_multiplier {
+            return Err(Error::InvalidMultiplier);
+        }
+
+        // Calculate payout with house edge (3%) at the derived multiplier
         // payout = bet_amount * (multiplier / 100) * (1 - 0.03)
-        let multiplier_factor = current_multiplier as i128;
+        let multiplier_factor = derived_multiplier as i128;
         let gross_payout = (bet.amount * multiplier_factor) / 100;
         let house_fee = (gross_payout * HOUSE_EDGE_BPS as i128) / 10000;
         let net_payout = gross_payout - house_fee;
 
         // Update bet status
-        bet.cash_out_multiplier = current_multiplier;
+        bet.cash_out_multiplier = derived_multiplier;
         bet.payout = net_payout;
         bet.status = BetStatus::CashedOut;
         set_bet(&env, bet_id, &bet);
@@ -399,6 +424,99 @@ fn generate_bet_id(env: &Env, round_id: u64, player: &Address) -> u64 {
         id = (id << 8) | (hash_bytes.get(i).unwrap() as u64);
     }
     id
+}
+
+/// Derive the multiplier (in contract x100 units, so 100 = 1.00x) from the
+/// elapsed seconds since round start using the documented curve:
+///   multiplier_x100 = 100 + t^1.55 * 1.6
+///
+/// t^1.55 is evaluated without floating point as t * t^0.5 * t^0.05:
+/// sqrt uses Newton iteration on u128 and t^0.05 is the 20th root found by
+/// binary search. The result floors slightly relative to the f64 curve the
+/// frontend simulates, which stays well within one ledger second of drift
+/// and errs toward the lower (safe) payout.
+fn curve_multiplier_x100(elapsed_secs: u64) -> u64 {
+    if elapsed_secs == 0 {
+        return 100;
+    }
+
+    const SQRT_SCALE: u128 = 1 << 16; // fixed-point scale for sqrt(t)
+    const ROOT_SCALE: u128 = 1 << 12; // fixed-point scale for t^0.05
+    const COMBINED: u128 = SQRT_SCALE * ROOT_SCALE; // 2^28
+
+    // sqrt_fp ~= sqrt(t) * SQRT_SCALE ; input t * SQRT_SCALE^2 fits u128
+    // for every u64 elapsed value.
+    let sqrt_fp = isqrt((elapsed_secs as u128) * SQRT_SCALE * SQRT_SCALE);
+
+    // root_fp ~= t^0.05 * ROOT_SCALE
+    let root_fp = root20_scaled(elapsed_secs, ROOT_SCALE);
+
+    // t^1.55 = t * sqrt_fp * root_fp / (SQRT_SCALE * ROOT_SCALE)
+    // product bound for u64::MAX elapsed ~= t^1.55 * 2^28, fits u128.
+    let t155 = (elapsed_secs as u128) * sqrt_fp * root_fp / COMBINED;
+
+    // multiplier_x100 = 100 + t^1.55 * 1.6 = 100 + t155 * 160 / 100
+    let derived = 100u128 + (t155 * 160) / 100;
+    if derived > u64::MAX as u128 {
+        u64::MAX
+    } else {
+        derived as u64
+    }
+}
+
+/// Largest y such that y^20 <= t * scale^20, i.e. floor(t^(1/20) * scale).
+/// Binary search; the pow20_le predicate evaluates y^20 / scale^19 <= t * scale
+/// with interleaved multiply/divide so no intermediate exceeds u128.
+fn root20_scaled(t: u64, scale: u128) -> u128 {
+    if t <= 1 {
+        return scale; // 1^0.05 == 1
+    }
+
+    // Upper bound: 16 * scale covers every physically possible elapsed
+    // (t <= 16^20 seconds ~= 4e24); doubling stops early for small t.
+    let mut hi = scale * 2;
+    while pow20_le(hi, t, scale) && hi < scale * 16 {
+        hi *= 2;
+    }
+
+    let mut lo = hi / 2;
+    while lo + 1 < hi {
+        let mid = lo + (hi - lo) / 2;
+        if pow20_le(mid, t, scale) {
+            lo = mid;
+        } else {
+            hi = mid;
+        }
+    }
+    lo
+}
+
+/// Returns y^20 <= t * scale^20 without materializing either side.
+/// Computes acc = floor over steps of y^20 / scale^19 and compares to
+/// t * scale; each intermediate acc * y <= (16 * scale)^20 / scale^18
+/// = 16^20 * scale^2 ~= 2e31 which fits u128 when scale = 2^12.
+/// Interleaved floor division underestimates y^20 by less than 1 part in
+/// scale, so the boundary error is below the integer resolution of y.
+fn pow20_le(y: u128, t: u64, scale: u128) -> bool {
+    let mut acc: u128 = y;
+    for _ in 1..20 {
+        acc = acc * y / scale;
+    }
+    acc <= (t as u128) * scale
+}
+
+/// Integer square root via Newton iteration (floor of sqrt).
+fn isqrt(n: u128) -> u128 {
+    if n == 0 {
+        return 0;
+    }
+    let mut x = n;
+    let mut y = x / 2 + 1;
+    while y < x {
+        x = y;
+        y = (x + n / x) / 2;
+    }
+    x
 }
 
 #[cfg(test)]
