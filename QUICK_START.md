@@ -38,7 +38,7 @@ git clone <your-repo-url>
 cd balloonfly
 
 # Install dependencies
-npm install
+pnpm install
 ```
 
 ### Step 2: Start Everything (2 min)
@@ -118,7 +118,7 @@ sudo systemctl start docker  # Linux
 
 ```bash
 # Kill process on port
-npx kill-port 5173
+pnpm dlx kill-port 5173
 
 # Or change port in vite.config.ts
 ```

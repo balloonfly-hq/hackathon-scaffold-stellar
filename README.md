@@ -80,7 +80,7 @@ git clone <your-repo-url>
 cd balloonfly
 
 # Install dependencies
-npm install
+pnpm install
 
 # Start development server
 npm start

@@ -3,25 +3,26 @@
   "type": "module",
   "version": "0.0.1",
   "private": true,
+  "packageManager": "pnpm@10.34.6",
   "scripts": {
     "dev": "concurrently \"stellar scaffold watch --build-clients\" \"vite\"",
     "start": "concurrently \"stellar scaffold watch --build-clients\" \"vite\"",
     "build": "pnpm --filter balloonfly build && tsc -b && vite build",
-    "install:contracts": "npm install --workspace=packages && npm run build --workspace=packages",
+    "install:contracts": "pnpm install --frozen-lockfile && pnpm --filter balloonfly build",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier . --write",
     "prepare": "husky"
   },
-  "workspaces": [
-    "packages/*"
-  ],
   "dependencies": {
     "@creit.tech/stellar-wallets-kit": "^1.9.5",
     "@stellar/design-system": "^3.1.5",
     "@stellar/stellar-sdk": "^14.2.0",
     "@stellar/stellar-xdr-json": "^23.0.0",
     "@tanstack/react-query": "^5.90.2",
+    "balloonfly": "workspace:*",
+    "bignumber.js": "^9.3.1",
+    "lodash": "^4.17.21",
     "lossless-json": "^4.2.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
@@ -30,6 +31,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
+    "@types/json-schema": "^7.0.15",
     "@types/lodash": "^4.17.20",
     "@types/react": "^19.1.16",
     "@types/react-dom": "^19.1.9",
