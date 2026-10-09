@@ -9,41 +9,38 @@ import RenderContractMetadata from "../debug/components/RenderContractMetadata.t
 
 const Debugger: React.FC = () => {
   const { data, isLoading } = useContracts();
-  const contractMap = data?.loadedContracts ?? {};
-  const failedContracts = data?.failed ?? {};
+  const contractMap = React.useMemo(
+    () => data?.loadedContracts ?? {},
+    [data?.loadedContracts],
+  );
+  const failedContracts = React.useMemo(
+    () => data?.failed ?? {},
+    [data?.failed],
+  );
   const navigate = useNavigate();
 
   const [selectedContract, setSelectedContract] = useState<string>("");
   const [isDetailExpanded, setIsDetailExpanded] = useState(false);
   const { contractName } = useParams<{ contractName?: string }>();
 
-  const contractKeys = Array.from(
-    new Set([...Object.keys(contractMap), ...Object.keys(failedContracts)]),
-  );
-  useEffect(() => {
-    if (!isLoading && contractKeys.length > 0) {
-      if (contractName && contractKeys.includes(contractName)) {
-        setSelectedContract(contractName);
-      } else {
-        setSelectedContract(contractKeys[0]);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contractName, isLoading, contractKeys.join(",")]);
+  const contractKeys = React.useMemo(() => {
+    return Array.from(
+      new Set([...Object.keys(contractMap), ...Object.keys(failedContracts)]),
+    );
+  }, [contractMap, failedContracts]);
 
   useEffect(() => {
-    if (!isLoading && contractKeys.length > 0) {
-      if (contractName && contractKeys.includes(contractName)) {
-        setSelectedContract(contractName);
-      } else if (!contractName) {
-        // Redirect to the first contract if no contractName in URL
-        navigate(`/debug/${contractKeys[0]}`, { replace: true });
-      } else {
-        setSelectedContract(contractKeys[0]);
-      }
+    if (isLoading || contractKeys.length === 0) return;
+
+    if (contractName && contractKeys.includes(contractName)) {
+      setSelectedContract(contractName);
+    } else if (!contractName) {
+      void navigate(`/debug/${contractKeys[0]}`, { replace: true });
+    } else {
+      setSelectedContract(contractKeys[0]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contractName, isLoading, contractKeys.join(",")]);
+    setIsDetailExpanded(false);
+  }, [contractName, contractKeys, isLoading, navigate]);
 
   if (isLoading) {
     return (
@@ -134,10 +131,14 @@ const Debugger: React.FC = () => {
 
       {failedContracts[selectedContract] && (
         <Layout.Inset>
-          <h2>{selectedContract}</h2>
-          <p style={{ color: "red" }}>
-            Failed to import contract: {failedContracts[selectedContract]}
-          </p>
+          <Card variant="secondary">
+            <Box gap="sm">
+              <h2>{selectedContract}</h2>
+              <p style={{ color: "var(--color-status-error, #d9383a)" }}>
+                Failed to import contract: {failedContracts[selectedContract]}
+              </p>
+            </Box>
+          </Card>
         </Layout.Inset>
       )}
 
