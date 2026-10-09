@@ -4,6 +4,8 @@ import React, {
   ReactNode,
   useMemo,
   useCallback,
+  useRef,
+  useEffect,
 } from "react";
 import { Notification as StellarNotification } from "@stellar/design-system";
 import "./NotificationProvider.css"; // Import CSS for sliding effect
@@ -33,24 +35,42 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const timeoutIdsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+
+  useEffect(() => {
+    const currentTimers = timeoutIdsRef.current;
+    return () => {
+      currentTimers.forEach((timerId) => clearTimeout(timerId));
+      currentTimers.clear();
+    };
+  }, []);
 
   const addNotification = useCallback(
     (message: string, type: NotificationType) => {
-      const newNotification = {
-        id: `${type}-${Date.now().toString()}`,
+      const uniqueId =
+        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+          : `${type}-${Date.now().toString()}-${Math.random().toString(36).slice(2, 9)}`;
+
+      const newNotification: Notification = {
+        id: uniqueId,
         message,
         type,
         isVisible: true,
       };
       setNotifications((prev) => [...prev, newNotification]);
 
-      setTimeout(() => {
+      const slideTimer = setTimeout(() => {
+        timeoutIdsRef.current.delete(slideTimer);
         setNotifications(markRead(newNotification.id));
       }, 2500); // Start transition out after 2.5 seconds
+      timeoutIdsRef.current.add(slideTimer);
 
-      setTimeout(() => {
+      const removeTimer = setTimeout(() => {
+        timeoutIdsRef.current.delete(removeTimer);
         setNotifications(filterOut(newNotification.id));
       }, 5000); // Remove after 5 seconds
+      timeoutIdsRef.current.add(removeTimer);
     },
     [],
   );
@@ -83,7 +103,7 @@ function markRead(
   return (prev) =>
     prev.map((notification) =>
       notification.id === id
-        ? { ...notification, isVisible: true }
+        ? { ...notification, isVisible: false }
         : notification,
     );
 }
