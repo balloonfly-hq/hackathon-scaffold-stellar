@@ -48,16 +48,27 @@ Every round is cryptographically verifiable using:
 BalloonFly/
 ├── contracts/balloonfly/     # Rust smart contract (Soroban)
 │   ├── src/
-│   │   ├── lib.rs            # Main contract logic
-│   │   ├── error.rs          # Error types
-│   │   └── xlm.rs            # XLM utilities
-│   └── Cargo.toml
+│   │   ├── lib.rs            # Main contract logic & round lifecycle
+│   │   ├── error.rs          # Contract error definitions
+│   │   ├── storage.rs        # Ledger keys and storage helpers
+│   │   ├── types.rs          # Round, bet, and game configuration types
+│   │   └── test.rs           # Contract unit & integration tests
+│   ├── Cargo.toml
+│   └── README.md             # Smart contract documentation
 │
 ├── src/                      # React frontend
 │   ├── components/           # UI components
-│   ├── hooks/                # Custom React hooks
-│   ├── pages/                # Route pages
-│   └── contracts/            # Auto-generated contract clients
+│   ├── contexts/             # React contexts (BalloonFlyContext)
+│   ├── contracts/            # Generated contract clients & RPC helpers
+│   ├── debug/                # Debugger and contract inspection utilities
+│   ├── hooks/                # Custom React hooks (useBalloonFly, useSubscription)
+│   ├── images/               # Game artwork and SVG assets
+│   ├── pages/                # Route pages (Landing, Game, Debugger)
+│   ├── providers/            # Top-level context providers
+│   └── util/                 # Friendbot, wallet, formatters, and math helpers
+│
+├── packages/balloonfly/      # Generated TypeScript client package
+│   └── README.md             # Client package documentation
 │
 └── environments.toml         # Contract deployment config
 ```
@@ -105,6 +116,7 @@ This will:
 - [Quick Start Guide](./QUICK_START.md) - Step-by-step setup
 - [Use Cases](./USE_CASES.md) - User flows and scenarios
 - [Smart Contract](./contracts/balloonfly/README.md) - Contract documentation
+- [Client Library](./packages/balloonfly/README.md) - Generated TypeScript client documentation
 
 ## 🎮 How to Play
 
