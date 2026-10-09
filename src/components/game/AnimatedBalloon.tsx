@@ -1,4 +1,5 @@
 import React from "react";
+import { getPositionOnCurve } from "./curve";
 
 interface AnimatedBalloonProps {
   progress: number; // 0-1
