@@ -43,37 +43,60 @@ export function useSubscription(
     let stop = false;
 
     async function pollEvents(): Promise<void> {
+      if (stop) return;
+
+      // Stop network polling when the document/tab is hidden
+      if (
+        typeof document !== "undefined" &&
+        document.visibilityState === "hidden"
+      ) {
+        return;
+      }
+
       try {
         if (!paging[id].lastLedgerStart) {
           const latestLedgerState = await server.getLatestLedger();
           paging[id].lastLedgerStart = latestLedgerState.sequence;
         }
 
-        const request: any = {
-          filters: [
-            {
-              contractIds: [contractId],
-              topics: [[xdr.ScVal.scvSymbol(topic).toXDR("base64")]],
-              type: "contract",
-            },
-          ],
-          limit: 10,
-        };
+        const filters: Api.EventFilter[] = [
+          {
+            contractIds: [contractId],
+            topics: [[xdr.ScVal.scvSymbol(topic).toXDR("base64")]],
+            type: "contract",
+          },
+        ];
 
+        let request: Api.GetEventsRequest;
         if (paging[id].pagingToken) {
-          request.cursor = paging[id].pagingToken;
-        } else if (paging[id].lastLedgerStart) {
-          request.startLedger = paging[id].lastLedgerStart;
+          request = {
+            filters,
+            cursor: paging[id].pagingToken,
+            limit: 10,
+          };
+        } else {
+          request = {
+            filters,
+            startLedger: paging[id].lastLedgerStart ?? 0,
+            endLedger: (paging[id].lastLedgerStart ?? 0) + 10000,
+            limit: 10,
+          };
         }
 
         const response = await server.getEvents(request);
 
-        paging[id].pagingToken = undefined;
         if (response.latestLedger) {
           paging[id].lastLedgerStart = response.latestLedger;
         }
-        if (response.events) {
-          response.events.forEach((event) => {
+
+        if (response.events && response.events.length > 0) {
+          let latestTokenInBatch: string | undefined = undefined;
+
+          for (const event of response.events) {
+            const rawToken = (event as { pagingToken?: string }).pagingToken;
+            if (rawToken && typeof rawToken === "string") {
+              latestTokenInBatch = rawToken;
+            }
             try {
               onEvent(event);
             } catch (error) {
@@ -81,25 +104,58 @@ export function useSubscription(
                 "Poll Events: subscription callback had error: ",
                 error,
               );
-            } finally {
-              paging[id].pagingToken = (event as any).pagingToken || undefined;
             }
-          });
+          }
+
+          // Advance cursor explicitly per batch without corruption if callback throws
+          if (latestTokenInBatch) {
+            paging[id].pagingToken = latestTokenInBatch;
+          }
         }
       } catch (error) {
         console.error("Poll Events: error: ", error);
       } finally {
-        if (!stop) {
+        if (
+          !stop &&
+          (typeof document === "undefined" ||
+            document.visibilityState !== "hidden")
+        ) {
           timeoutId = setTimeout(() => void pollEvents(), pollInterval);
         }
       }
     }
 
+    // Schedule immediate or interval polling on visibility change
+    function handleVisibilityChange(): void {
+      if (document.visibilityState === "visible") {
+        if (timeoutId != null) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        void pollEvents();
+      } else {
+        if (timeoutId != null) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+      }
+    }
+
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+    }
+
     void pollEvents();
 
     return () => {
-      if (timeoutId != null) clearTimeout(timeoutId);
       stop = true;
+      if (timeoutId != null) clearTimeout(timeoutId);
+      if (typeof document !== "undefined") {
+        document.removeEventListener(
+          "visibilitychange",
+          handleVisibilityChange,
+        );
+      }
     };
   }, [contractId, topic, onEvent, id, pollInterval]);
 }
