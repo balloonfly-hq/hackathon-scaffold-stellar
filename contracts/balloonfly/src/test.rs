@@ -274,23 +274,28 @@ fn test_cash_out() {
 
     client.start_round(&round_id, &server_seed, &crash_multiplier);
 
-    // Cash out at 2.00x
+    // Advance 15s so the derived curve multiplier is ~2.05x
+    env.ledger().set_timestamp(1_000_015);
+
+    // Cash out claiming 2.00x; payout uses the on-chain derived multiplier
     let cash_out_multiplier = 200u64;
     let payout = client.cash_out(&player, &bet_id, &cash_out_multiplier);
 
-    // Expected: 10 XLM * 2.00x = 20 XLM
-    // With 3% house edge: 20 * 0.97 = 19.4 XLM
-    let expected_payout = 194_000_000i128;
+    // Payout is computed at the derived multiplier for elapsed = 15s
+    let derived = curve_multiplier_x100(15);
+    assert!(derived >= cash_out_multiplier);
+    let expected_gross = bet_amount * derived as i128 / 100;
+    let expected_payout = expected_gross - expected_gross * storage::HOUSE_EDGE_BPS as i128 / 10000;
     assert_eq!(payout, expected_payout);
 
     let bet = client.get_bet(&bet_id);
     assert_eq!(bet.status, BetStatus::CashedOut);
-    assert_eq!(bet.cash_out_multiplier, cash_out_multiplier);
+    assert_eq!(bet.cash_out_multiplier, derived);
     assert_eq!(bet.payout, expected_payout);
 
     let pool = client.get_pool();
     assert_eq!(pool.total_payouts, expected_payout);
-    assert_eq!(pool.total_house_earnings, 6_000_000i128); // 3% of 20 XLM
+    assert_eq!(pool.total_house_earnings, expected_gross - expected_payout);
 }
 
 #[test]
@@ -339,6 +344,9 @@ fn test_double_cash_out() {
     env.ledger().set_timestamp(1_000_060);
 
     client.start_round(&round_id, &server_seed, &crash_multiplier);
+
+    // Advance 15s so the derived curve multiplier is >= 2.00x
+    env.ledger().set_timestamp(1_000_015);
 
     // First cash out
     client.cash_out(&player, &bet_id, &200);
@@ -608,21 +616,26 @@ fn test_payout_calculation_accuracy() {
 
     client.start_round(&round_id, &server_seed, &1000); // Crash at 10.00x
 
-    // Cash out at 3.50x
+    // Advance 30s so the derived curve multiplier is ~4.1x
+    env.ledger().set_timestamp(1_000_030);
+
+    // Cash out claiming 3.50x; payout uses the on-chain derived multiplier
     let payout = client.cash_out(&player, &bet_id, &350);
 
-    // Expected: 50 XLM * 3.50x = 175 XLM
-    // With 3% house edge: 175 * 0.97 = 169.75 XLM
-    let expected_payout = 1_697_500_000i128;
+    let derived = curve_multiplier_x100(30);
+    assert!(derived >= 350);
+    let expected_gross = bet_amount * derived as i128 / 100;
+    let expected_payout = expected_gross - expected_gross * storage::HOUSE_EDGE_BPS as i128 / 10000;
     assert_eq!(payout, expected_payout);
 
     let pool = client.get_pool();
-    assert_eq!(pool.total_house_earnings, 52_500_000i128); // 3% of 175 XLM
+    assert_eq!(pool.total_house_earnings, expected_gross - expected_payout);
 }
 
 
 #[test]
 fn test_start_round_enforces_betting_window() {
+fn test_cash_out_rejects_overclaimed_multiplier() {
     let env = Env::default();
     let (_admin, client) = create_test_contract(&env);
 
@@ -648,4 +661,21 @@ fn test_start_round_enforces_betting_window() {
     let round = client.get_round(&round_id);
     assert_eq!(round.status, RoundStatus::InProgress);
     assert_eq!(round.started_at, 1_000_060);
+    let crash_multiplier = 500u64;
+    client.create_round(&round_id, &server_seed_hash, &60u64);
+
+    let player = Address::generate(&env);
+    let bet_amount = 100_000_000i128;
+    let client_seed = generate_seed(&env, 111);
+    let bet_id = client.place_bet(&player, &round_id, &bet_amount, &client_seed);
+
+    client.start_round(&round_id, &server_seed, &crash_multiplier);
+
+    // Only 2s elapsed: the derived curve multiplier is ~1.03x, so a caller
+    // supplying 2.50x is far above the elapsed-time value and must error.
+    env.ledger().set_timestamp(1_000_002);
+    assert!(curve_multiplier_x100(2) < 250);
+
+    let result = client.try_cash_out(&player, &bet_id, &250);
+    assert_eq!(result.err(), Some(Ok(Error::InvalidMultiplier)));
 }
