@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Pool } from "../../contexts/BalloonFlyContext";
 
 interface GameInfoModalProps {
@@ -15,6 +15,9 @@ const GameInfoModal: React.FC<GameInfoModalProps> = ({
   formatXLM,
 }) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const previousActiveElement = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -26,6 +29,53 @@ const GameInfoModal: React.FC<GameInfoModalProps> = ({
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
   }, []);
+
+  // Escape key handler, focus trap, and focus restoration
+  useEffect(() => {
+    if (!isOpen) return;
+
+    previousActiveElement.current =
+      document.activeElement as HTMLElement | null;
+
+    // Focus close button on open
+    const focusTimer = setTimeout(() => {
+      closeButtonRef.current?.focus();
+    }, 10);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+
+      if (e.key === "Tab" && modalRef.current) {
+        const focusableElements =
+          modalRef.current.querySelectorAll<HTMLElement>(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+          );
+        if (focusableElements.length === 0) return;
+
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey && document.activeElement === firstElement) {
+          e.preventDefault();
+          lastElement.focus();
+        } else if (!e.shiftKey && document.activeElement === lastElement) {
+          e.preventDefault();
+          firstElement.focus();
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      clearTimeout(focusTimer);
+      document.removeEventListener("keydown", handleKeyDown);
+      previousActiveElement.current?.focus();
+    };
+  }, [isOpen, onClose]);
 
   const handleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -49,6 +99,7 @@ const GameInfoModal: React.FC<GameInfoModalProps> = ({
       {/* Overlay */}
       <div
         onClick={onClose}
+        aria-hidden="true"
         style={{
           position: "fixed",
           top: 0,
@@ -63,6 +114,10 @@ const GameInfoModal: React.FC<GameInfoModalProps> = ({
 
       {/* Modal */}
       <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="game-info-modal-title"
         style={{
           position: "fixed",
           top: "50%",
@@ -77,6 +132,7 @@ const GameInfoModal: React.FC<GameInfoModalProps> = ({
           display: "flex",
           flexDirection: "column",
           boxShadow: "0 20px 60px rgba(0, 0, 0, 0.5)",
+          outline: "none",
         }}
       >
         {/* Header */}
@@ -90,6 +146,7 @@ const GameInfoModal: React.FC<GameInfoModalProps> = ({
           }}
         >
           <h3
+            id="game-info-modal-title"
             style={{
               margin: 0,
               fontSize: "18px",
@@ -100,8 +157,10 @@ const GameInfoModal: React.FC<GameInfoModalProps> = ({
             Game Information
           </h3>
           <button
+            ref={closeButtonRef}
             type="button"
             onClick={onClose}
+            aria-label="Close game information dialog"
             style={{
               background: "transparent",
               border: "none",
