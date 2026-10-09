@@ -7,49 +7,57 @@ interface AnimatedBalloonProps {
   isExploding: boolean;
 }
 
+export function clampProgress(t: number): number {
+  if (!Number.isFinite(t) || Number.isNaN(t)) {
+    return 0;
+  }
+  return Math.max(0, Math.min(1, t));
+}
+
+// Calculate position on curve with finite progress guard (same logic as ProgressCurve)
+export const getPositionOnCurve = (rawT: number) => {
+  const t = clampProgress(rawT);
+  const startX = 0;
+  const startY = 100;
+  const endX = 100;
+  const endY = 0;
+  const cp1X = 25;
+  const cp1Y = 75;
+  const cp2X = 65;
+  const cp2Y = 15;
+
+  const x =
+    Math.pow(1 - t, 3) * startX +
+    3 * Math.pow(1 - t, 2) * t * cp1X +
+    3 * (1 - t) * Math.pow(t, 2) * cp2X +
+    Math.pow(t, 3) * endX;
+
+  const y =
+    Math.pow(1 - t, 3) * startY +
+    3 * Math.pow(1 - t, 2) * t * cp1Y +
+    3 * (1 - t) * Math.pow(t, 2) * cp2Y +
+    Math.pow(t, 3) * endY;
+
+  // Calculate rotation based on curve direction (tangent)
+  const dx =
+    3 * Math.pow(1 - t, 2) * (cp1X - startX) +
+    6 * (1 - t) * t * (cp2X - cp1X) +
+    3 * Math.pow(t, 2) * (endX - cp2X);
+  const dy =
+    3 * Math.pow(1 - t, 2) * (cp1Y - startY) +
+    6 * (1 - t) * t * (cp2Y - cp1Y) +
+    3 * Math.pow(t, 2) * (endY - cp2Y);
+  const angle = Math.atan2(-dy, dx) * (180 / Math.PI);
+
+  return { x, y, angle };
+};
+
 const AnimatedBalloon: React.FC<AnimatedBalloonProps> = ({
   progress,
   color,
   isFlying,
   isExploding,
 }) => {
-  // Calculate position on curve (same logic as ProgressCurve)
-  const getPositionOnCurve = (t: number) => {
-    const startX = 0;
-    const startY = 100;
-    const endX = 100;
-    const endY = 0;
-    const cp1X = 25;
-    const cp1Y = 75;
-    const cp2X = 65;
-    const cp2Y = 15;
-
-    const x =
-      Math.pow(1 - t, 3) * startX +
-      3 * Math.pow(1 - t, 2) * t * cp1X +
-      3 * (1 - t) * Math.pow(t, 2) * cp2X +
-      Math.pow(t, 3) * endX;
-
-    const y =
-      Math.pow(1 - t, 3) * startY +
-      3 * Math.pow(1 - t, 2) * t * cp1Y +
-      3 * (1 - t) * Math.pow(t, 2) * cp2Y +
-      Math.pow(t, 3) * endY;
-
-    // Calculate rotation based on curve direction (tangent)
-    const dx =
-      3 * Math.pow(1 - t, 2) * (cp1X - startX) +
-      6 * (1 - t) * t * (cp2X - cp1X) +
-      3 * Math.pow(t, 2) * (endX - cp2X);
-    const dy =
-      3 * Math.pow(1 - t, 2) * (cp1Y - startY) +
-      6 * (1 - t) * t * (cp2Y - cp1Y) +
-      3 * Math.pow(t, 2) * (endY - cp2Y);
-    const angle = Math.atan2(-dy, dx) * (180 / Math.PI);
-
-    return { x, y, angle };
-  };
-
   const position = getPositionOnCurve(progress);
 
   return (
@@ -147,23 +155,27 @@ const AnimatedBalloon: React.FC<AnimatedBalloonProps> = ({
         >
           {Array.from({ length: 20 }).map((_, i) => {
             const angle = (i / 20) * Math.PI * 2;
+            const angleDeg = (angle * 180) / Math.PI;
             const distance = 60;
             return (
               <div
                 key={i}
-                style={{
-                  position: "absolute",
-                  width: "8px",
-                  height: "8px",
-                  borderRadius: "50%",
-                  background: color,
-                  left: "50%",
-                  top: "50%",
-                  transform: `translate(-50%, -50%) rotate(${(angle * 180) / Math.PI}deg) translateY(-${distance}px)`,
-                  animation: `explode 0.8s ease-out forwards`,
-                  animationDelay: `${i * 0.03}s`,
-                  boxShadow: `0 0 10px ${color}`,
-                }}
+                style={
+                  {
+                    position: "absolute",
+                    width: "8px",
+                    height: "8px",
+                    borderRadius: "50%",
+                    background: color,
+                    left: "50%",
+                    top: "50%",
+                    "--angle": `${angleDeg}deg`,
+                    transform: `translate(-50%, -50%) rotate(${angleDeg}deg) translateY(-${distance}px)`,
+                    animation: `explode 0.8s ease-out forwards`,
+                    animationDelay: `${i * 0.03}s`,
+                    boxShadow: `0 0 10px ${color}`,
+                  } as React.CSSProperties
+                }
               />
             );
           })}
