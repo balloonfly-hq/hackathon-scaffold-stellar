@@ -322,7 +322,6 @@ graph TD
 **Preconditions:**
 
 - Round has ended
-- Server seed revealed
 
 **Flow:**
 
@@ -339,6 +338,15 @@ graph TD
    multiplier = calculateFromHash(hash);
    ```
 4. Player confirms calculation matches
+1. Player clicks round details or inspects `RoundDetailsModal`
+2. Modal shows the on-chain recorded round data:
+   - **Server Seed Hash**: The 32-byte SHA256 commitment published prior to betting
+   - **Client Seeds**: Entropy contributed by players during the betting window
+   - **Result**: The deterministic crash multiplier recorded on-chain
+   - **Round Stats**: Total bets and total XLM wagered
+3. Player confirms cryptographic commitment:
+   - The contract verifies `SHA256(server_seed) == server_seed_hash` when starting the round, binding the operator before client seeds are gathered.
+   - **Note on Revealed Seed**: In the current contract version (`contracts/balloonfly`), `server_seed_hash` is permanently recorded in contract storage, but the raw `server_seed` preimage is verified and discarded during `start_round` without being written to contract storage. Full client-side re-derivation requires the operator to publish the raw seed off-chain, or for a future contract upgrade to store `server_seed` in `Round` upon `finalize_round`.
 
 ```mermaid
 sequenceDiagram
@@ -348,7 +356,7 @@ sequenceDiagram
     participant Verifier as Independent Verifier
 
     Note over Contract: Round Ended
-    Player->>UI: Click "🔒 Provably Fair"
+    Player->>UI: Click Round in History
     UI->>Contract: Get round data
     Contract->>UI: Return seeds & hash
 
@@ -362,6 +370,11 @@ sequenceDiagram
     Verifier->>Player: ✅ Confirmed Fair!
 
     Note over Player: Trust established
+    Contract->>UI: Return server_seed_hash, client_seeds, crash_multiplier
+
+    UI->>Player: Show Modal with:
+    Note over Player,UI: • Server Seed Hash (committed prior to bets)<br/>• Client Seeds (player entropy)<br/>• Verified Crash Multiplier<br/>• Bet Totals
+    Player->>Player: Confirm commitment & client seeds recorded on-chain
 ```
 
 **Success Criteria:**
@@ -369,6 +382,9 @@ sequenceDiagram
 - ✅ All seeds visible
 - ✅ Hash calculation correct
 - ✅ Multiplier verifiable
+- ✅ Server seed hash commitment visible
+- ✅ Client seeds recorded on-chain
+- ✅ Crash multiplier verifiable on-chain
 
 ---
 
@@ -693,6 +709,14 @@ The frontend provides aggregated performance metrics via `StatisticsPanel` acros
 4. **Online Now**: A real-time concurrent user indicator currently rendered with placeholder value `0` pending WebSocket or presence event infrastructure.
 
 > **Note on Per-Player Metrics**: Individual player tracking (such as personal win rate %, average cash-out multiplier, personal biggest win, or cumulative player profit/loss) requires wallet-level bet indexing that the smart contract does not currently expose directly. These metrics will be enabled once the backend indexing service is deployed.
+Players can track:
+
+- Total bets placed
+- Win rate (%)
+- Average cash-out multiplier
+- Biggest win
+- Total profit/loss
+- Rounds played
 
 ---
 
@@ -730,7 +754,7 @@ sequenceDiagram
 
 ### SEC-02: Verify Fair Crash
 
-**Scenario:** Player suspects rigged game
+**Scenario:** Player audits game fairness
 
 ```mermaid
 graph TD
@@ -764,6 +788,26 @@ graph TD
 4. Verify: `SHA256(revealed) === hash`
 5. Calculate multiplier from seeds
 6. Confirm crash was predetermined
+    A[Before Round] --> B[Server commits server_seed_hash]
+    B --> C[Players observe committed hash on-chain]
+    C --> D[Players bet and contribute client seeds]
+    D --> E[Contract verifies SHA256 server_seed == hash on start]
+    E --> F[Round crashes at deterministic multiplier]
+    F --> G[On-chain state stores hash, client seeds, multiplier]
+    G --> H{Audit}
+    H -->|Commitment Enforced| I[Operator cannot alter outcome after bets ✅]
+    H -->|Seed Preimage| J[Retained off-chain by operator / future contract upgrade]
+
+    style I fill:#10b981
+    style J fill:#f59e0b
+```
+
+**Verification Details:**
+
+1. **Pre-Bet Commitment**: Server publishes `server_seed_hash` before any bets are placed or client seeds are received.
+2. **Contract Enforced Check**: When `start_round` is called, the contract computes `SHA256(server_seed)` and requires it to equal `server_seed_hash`.
+3. **Entropy Injected**: Player-submitted client seeds are bound to the round state on-chain.
+4. **Preimage Storage Status**: Currently, `Round` in the contract stores `server_seed_hash: BytesN<32>` and `client_seeds: Vec<BytesN<32>>`, but does not store the raw `server_seed` preimage on-chain. Independent zero-knowledge recalculation of the crash formula requires the operator to reveal the preimage off-chain (or a future contract upgrade to persist `server_seed` in `Round` on `finalize_round`).
 
 ---
 
