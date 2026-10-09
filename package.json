@@ -4,6 +4,9 @@
   "version": "0.0.1",
   "private": true,
   "packageManager": "pnpm@10.34.6",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "concurrently \"stellar scaffold watch --build-clients\" \"vite\"",
     "start": "concurrently \"stellar scaffold watch --build-clients\" \"vite\"",
