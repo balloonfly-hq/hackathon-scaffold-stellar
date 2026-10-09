@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useWallet } from "./useWallet";
 import balloonFlyClient from "../contracts/balloonfly";
 import type { RoundStatus as ContractRoundStatus } from "../../packages/balloonfly/src/index";
@@ -78,7 +78,17 @@ interface UseBalloonFlyReturn {
   cashOut: () => Promise<void>;
   fetchRoundDetails: (roundId: bigint) => Promise<Round | null>;
   initializeFirstRound: () => Promise<void>;
-  
+
+  // Auto-bet configuration (shared across betting panels)
+  betAmount: number;
+  setBetAmount: (amount: number) => void;
+  autoBetEnabled: boolean;
+  setAutoBetEnabled: (enabled: boolean) => void;
+  autoCashOutEnabled: boolean;
+  setAutoCashOutEnabled: (enabled: boolean) => void;
+  autoCashOutMultiplier: number;
+  setAutoCashOutMultiplier: (mult: number) => void;
+
   // Utilities
   formatXLM: (stroops: bigint) => string;
   multiplierToNumber: (mult: bigint) => number;
@@ -86,7 +96,7 @@ interface UseBalloonFlyReturn {
 
 export const useBalloonFly = (): UseBalloonFlyReturn => {
   const { address } = useWallet();
-  
+
   const [currentRound, setCurrentRound] = useState<Round | null>(null);
   const [currentMultiplier, setCurrentMultiplier] = useState(1.0);
   const [isFlying, setIsFlying] = useState(false);
@@ -95,6 +105,63 @@ export const useBalloonFly = (): UseBalloonFlyReturn => {
   const [pastRounds, setPastRounds] = useState<Round[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Auto-bet settings lifted from BettingPanel so the hook can drive
+  // automatic placement and cash-out. Persisted under the same
+  // localStorage keys the panel previously used.
+  const [betAmount, setBetAmountState] = useState(() => {
+    const saved = localStorage.getItem("balloonfly_bet_amount");
+    if (saved) {
+      const amount = parseFloat(saved);
+      if (!isNaN(amount) && amount >= 1.0) {
+        return amount;
+      }
+    }
+    return 1.0;
+  });
+
+  const [autoBetEnabled, setAutoBetEnabledState] = useState(
+    () => localStorage.getItem("balloonfly_auto_bet") === "true",
+  );
+
+  const [autoCashOutEnabled, setAutoCashOutEnabledState] = useState(
+    () => localStorage.getItem("balloonfly_auto_cashout") === "true",
+  );
+
+  const [autoCashOutMultiplier, setAutoCashOutMultiplierState] = useState(
+    () => {
+      const saved = localStorage.getItem("balloonfly_auto_cashout_mult");
+      if (saved) {
+        const mult = parseFloat(saved);
+        if (!isNaN(mult) && mult >= 1.0) {
+          return Math.min(1000.0, mult);
+        }
+      }
+      return 1.1;
+    },
+  );
+
+  const setBetAmount = useCallback((amount: number) => {
+    const clamped = Math.max(1.0, amount);
+    setBetAmountState(clamped);
+    localStorage.setItem("balloonfly_bet_amount", clamped.toString());
+  }, []);
+
+  const setAutoBetEnabled = useCallback((enabled: boolean) => {
+    setAutoBetEnabledState(enabled);
+    localStorage.setItem("balloonfly_auto_bet", enabled.toString());
+  }, []);
+
+  const setAutoCashOutEnabled = useCallback((enabled: boolean) => {
+    setAutoCashOutEnabledState(enabled);
+    localStorage.setItem("balloonfly_auto_cashout", enabled.toString());
+  }, []);
+
+  const setAutoCashOutMultiplier = useCallback((mult: number) => {
+    const clamped = Math.max(1.0, Math.min(1000.0, mult));
+    setAutoCashOutMultiplierState(clamped);
+    localStorage.setItem("balloonfly_auto_cashout_mult", clamped.toString());
+  }, []);
 
   // Utility functions
   const formatXLM = useCallback((stroops: bigint): string => {
@@ -123,7 +190,7 @@ export const useBalloonFly = (): UseBalloonFlyReturn => {
       const roundData = await balloonFlyClient.get_current_round();
       if (roundData.result) {
         const contractRound = roundData.result as unknown as any;
-        
+
         // Convert contract round to our Round type
         const round: Round = {
           id: BigInt(contractRound.id || 0),
@@ -139,7 +206,7 @@ export const useBalloonFly = (): UseBalloonFlyReturn => {
           bet_count: contractRound.bet_count || 0,
           client_seeds: contractRound.client_seeds || [],
         };
-        
+
         // Only update state if round actually changed to prevent unnecessary re-renders
         setCurrentRound(prev => {
           if (!prev) {
@@ -148,11 +215,11 @@ export const useBalloonFly = (): UseBalloonFlyReturn => {
             setIsFlying(isFlyingNow);
             return round;
           }
-          
+
           // Check if round ID or status changed
           const idChanged = prev.id !== round.id;
           const statusChanged = prev.status !== round.status;
-          
+
           // Check if other important fields changed
           const fieldsChanged = (
             prev.crash_multiplier !== round.crash_multiplier ||
@@ -161,7 +228,7 @@ export const useBalloonFly = (): UseBalloonFlyReturn => {
             prev.bet_count !== round.bet_count ||
             prev.started_at !== round.started_at
           );
-          
+
           // Only update if something actually changed
           if (idChanged || statusChanged || fieldsChanged) {
             // Update flying state if status changed
@@ -171,7 +238,7 @@ export const useBalloonFly = (): UseBalloonFlyReturn => {
               if (wasFlying !== isFlyingNow) {
                 setIsFlying(isFlyingNow);
               }
-              
+
               // When round ends, add to history
               if (round.status === RoundStatus.Ended && prev.status !== RoundStatus.Ended) {
                 setPastRounds(prevRounds => {
@@ -181,10 +248,10 @@ export const useBalloonFly = (): UseBalloonFlyReturn => {
                 });
               }
             }
-            
+
             return round;
           }
-          
+
           // No changes, return previous to prevent re-render
           return prev;
         });
@@ -202,7 +269,7 @@ export const useBalloonFly = (): UseBalloonFlyReturn => {
       const roundData = await balloonFlyClient.get_round({ round_id: roundId });
       if (roundData.result) {
         const contractRound = roundData.result as unknown as any;
-        
+
         // Convert contract round to our Round type
         const round: Round = {
           id: BigInt(contractRound.id || 0),
@@ -218,7 +285,7 @@ export const useBalloonFly = (): UseBalloonFlyReturn => {
           bet_count: contractRound.bet_count || 0,
           client_seeds: contractRound.client_seeds || [],
         };
-        
+
         return round;
       }
       return null;
@@ -245,11 +312,11 @@ export const useBalloonFly = (): UseBalloonFlyReturn => {
 
     try {
       const amountInStroops = BigInt(Math.floor(amount * 10_000_000));
-      
+
       // Generate random client seed
       const clientSeed = new Uint8Array(32);
       crypto.getRandomValues(clientSeed);
-      
+
       const result = await balloonFlyClient.place_bet({
         player: address,
         round_id: currentRound.id,
@@ -258,7 +325,7 @@ export const useBalloonFly = (): UseBalloonFlyReturn => {
       });
 
       console.log("Bet placed:", result);
-      
+
       // Fetch the bet details
       if (result.result) {
         const betId = result.result as unknown as bigint;
@@ -300,7 +367,7 @@ export const useBalloonFly = (): UseBalloonFlyReturn => {
 
     try {
       const currentMultiplierInContract = BigInt(Math.floor(currentMultiplier * 100));
-      
+
       const result = await balloonFlyClient.cash_out({
         player: address,
         bet_id: userBet.id,
@@ -308,7 +375,7 @@ export const useBalloonFly = (): UseBalloonFlyReturn => {
       });
 
       console.log("Cashed out:", result);
-      
+
       // Refresh bet data
       const betData = await balloonFlyClient.get_bet({ bet_id: userBet.id });
       if (betData.result) {
@@ -347,7 +414,7 @@ export const useBalloonFly = (): UseBalloonFlyReturn => {
       // Generate server seed and hash
       const serverSeed = new Uint8Array(32);
       crypto.getRandomValues(serverSeed);
-      
+
       // Hash the seed using Web Crypto API
       const hashBuffer = await crypto.subtle.digest('SHA-256', serverSeed);
       const hashArray = new Uint8Array(hashBuffer);
@@ -375,6 +442,64 @@ export const useBalloonFly = (): UseBalloonFlyReturn => {
     }
   }, [address, fetchCurrentRound]);
 
+  // Auto-bet: place a bet once per round when the round is in its
+  // Waiting (betting window) phase. Tracks the last round handled so a
+  // new round triggers exactly one placement.
+  const autoBetRoundRef = useRef<bigint | null>(null);
+  useEffect(() => {
+    if (
+      !autoBetEnabled ||
+      !address ||
+      !currentRound ||
+      currentRound.status !== RoundStatus.Waiting ||
+      autoBetRoundRef.current === currentRound.id
+    ) {
+      return;
+    }
+
+    const roundId = currentRound.id;
+    autoBetRoundRef.current = roundId;
+    void placeBet(betAmount);
+  }, [autoBetEnabled, address, currentRound, betAmount, placeBet]);
+
+  // Auto cash-out: fire once the live multiplier reaches the configured
+  // threshold while the player's bet is active in the current round.
+  const autoCashOutBusyRef = useRef(false);
+  useEffect(() => {
+    const hasActiveBetThisRound =
+      !!userBet &&
+      userBet.status === BetStatus.Active &&
+      !!currentRound &&
+      userBet.round_id === currentRound.id;
+
+    if (
+      !autoCashOutEnabled ||
+      !isFlying ||
+      !hasActiveBetThisRound ||
+      currentMultiplier < autoCashOutMultiplier ||
+      autoCashOutBusyRef.current
+    ) {
+      return;
+    }
+
+    autoCashOutBusyRef.current = true;
+    void (async () => {
+      try {
+        await cashOut();
+      } finally {
+        autoCashOutBusyRef.current = false;
+      }
+    })();
+  }, [
+    autoCashOutEnabled,
+    autoCashOutMultiplier,
+    currentMultiplier,
+    isFlying,
+    userBet,
+    currentRound,
+    cashOut,
+  ]);
+
   // Calculate multiplier based on elapsed time since round started
   // Formula: multiplier = 1 + (time_elapsed^1.55 * 1.6) / 100
   useEffect(() => {
@@ -387,15 +512,15 @@ export const useBalloonFly = (): UseBalloonFlyReturn => {
       const now = BigInt(Math.floor(Date.now() / 1000));
       const startedAt = currentRound.started_at;
       const elapsedSeconds = Number(now - startedAt);
-      
+
       if (elapsedSeconds < 0) {
         setCurrentMultiplier(1.0);
         return;
       }
-      
+
       // Calculate multiplier: 1 + (t^1.55 * 1.6) / 100
       const multiplier = 1.0 + (Math.pow(elapsedSeconds, 1.55) * 1.6) / 100;
-      
+
       // Check if crashed
       if (currentRound.crash_multiplier > 0) {
         const crashMult = multiplierToNumber(currentRound.crash_multiplier);
@@ -405,7 +530,7 @@ export const useBalloonFly = (): UseBalloonFlyReturn => {
           return;
         }
       }
-      
+
       setCurrentMultiplier(multiplier);
     }, 100); // Update every 100ms for smooth animation
 
@@ -415,7 +540,7 @@ export const useBalloonFly = (): UseBalloonFlyReturn => {
   // Fetch current round on mount and poll for updates (optimized to prevent unnecessary re-renders)
   useEffect(() => {
     fetchCurrentRound();
-    
+
     // Poll for round updates every 2 seconds
     // Only updates if round actually changed (by ID or status)
     const interval = setInterval(() => {
@@ -427,7 +552,7 @@ export const useBalloonFly = (): UseBalloonFlyReturn => {
   // Fetch pool on mount
   useEffect(() => {
     fetchPool();
-    
+
     // Refresh pool every 10 seconds
     const interval = setInterval(fetchPool, 10000);
     return () => clearInterval(interval);
@@ -446,8 +571,15 @@ export const useBalloonFly = (): UseBalloonFlyReturn => {
     cashOut,
     fetchRoundDetails,
     initializeFirstRound,
+    betAmount,
+    setBetAmount,
+    autoBetEnabled,
+    setAutoBetEnabled,
+    autoCashOutEnabled,
+    setAutoCashOutEnabled,
+    autoCashOutMultiplier,
+    setAutoCashOutMultiplier,
     formatXLM,
     multiplierToNumber,
   };
 };
-

@@ -4,8 +4,23 @@ import { useBalloonFlyContext } from "../../contexts/BalloonFlyContext";
 import { BetStatus } from "../../hooks/useBalloonFly";
 
 const BettingControls: React.FC = () => {
-  const { placeBet, cashOut, userBet, loading, error, isFlying } =
-    useBalloonFlyContext();
+  const {
+    placeBet,
+    cashOut,
+    userBet,
+    loading,
+    error,
+    isFlying,
+    currentMultiplier,
+    betAmount,
+    setBetAmount,
+    autoBetEnabled,
+    setAutoBetEnabled,
+    autoCashOutEnabled,
+    setAutoCashOutEnabled,
+    autoCashOutMultiplier,
+    setAutoCashOutMultiplier,
+  } = useBalloonFlyContext();
 
   // Memoize handlers to prevent re-renders of BettingPanel
   const handleBet1 = useCallback(
@@ -58,6 +73,18 @@ const BettingControls: React.FC = () => {
     return userBet && userBet.status === BetStatus.Active && isFlying;
   }, [userBet, isFlying]);
 
+  const panelProps = {
+    betAmount,
+    onBetAmountChange: setBetAmount,
+    currentMultiplier,
+    autoBetEnabled,
+    onAutoBetEnabledChange: setAutoBetEnabled,
+    autoCashOutEnabled,
+    onAutoCashOutEnabledChange: setAutoCashOutEnabled,
+    autoCashOutMultiplier,
+    onAutoCashOutMultiplierChange: setAutoCashOutMultiplier,
+  };
+
   return (
     <div
       style={{
@@ -98,12 +125,14 @@ const BettingControls: React.FC = () => {
           onBet={handleBet1}
           onCashOut={handleCashOut1}
           loading={loading}
+          {...panelProps}
         />
         <BettingPanel
           isActive={!!hasActiveBet}
           onBet={handleBet2}
           onCashOut={handleCashOut2}
           loading={loading}
+          {...panelProps}
         />
       </div>
     </div>

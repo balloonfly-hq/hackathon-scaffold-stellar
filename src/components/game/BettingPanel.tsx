@@ -5,136 +5,85 @@ interface BettingPanelProps {
   onBet?: (amount: number) => void;
   onCashOut?: () => void;
   loading?: boolean;
+  betAmount: number;
+  onBetAmountChange: (amount: number) => void;
+  currentMultiplier: number;
+  autoBetEnabled: boolean;
+  onAutoBetEnabledChange: (enabled: boolean) => void;
+  autoCashOutEnabled: boolean;
+  onAutoCashOutEnabledChange: (enabled: boolean) => void;
+  autoCashOutMultiplier: number;
+  onAutoCashOutMultiplierChange: (mult: number) => void;
 }
 
 const BettingPanel: React.FC<BettingPanelProps> = React.memo(
-  ({ isActive = false, onBet, onCashOut, loading = false }) => {
-    // Use refs to persist state across re-renders
-    const stateRef = useRef({
-      betAmount: 1.0,
-      activeTab: "manual" as "manual" | "auto",
-      autoBetEnabled: false,
-      autoCashOutEnabled: false,
-      autoCashOutMultiplier: 1.1,
-    });
-
-    // Initialize betAmount - always start with 1.0
-    const [betAmount, setBetAmountState] = useState(() => {
-      let initialAmount = 1.0;
-      const saved = localStorage.getItem("balloonfly_bet_amount");
-      if (saved) {
-        const amount = parseFloat(saved);
-        if (!isNaN(amount) && amount >= 1.0) {
-          initialAmount = amount;
-        }
-      }
-      stateRef.current.betAmount = initialAmount;
-      return initialAmount;
-    });
-
+  ({
+    isActive = false,
+    onBet,
+    onCashOut,
+    loading = false,
+    betAmount,
+    onBetAmountChange,
+    currentMultiplier,
+    autoBetEnabled,
+    onAutoBetEnabledChange,
+    autoCashOutEnabled,
+    onAutoCashOutEnabledChange,
+    autoCashOutMultiplier,
+    onAutoCashOutMultiplierChange,
+  }) => {
     const [activeTab, setActiveTabState] = useState<"manual" | "auto">(() => {
       const saved = localStorage.getItem("balloonfly_bet_tab");
       if (saved && (saved === "manual" || saved === "auto")) {
-        stateRef.current.activeTab = saved;
         return saved;
       }
       return "manual";
     });
 
-    // Auto bet settings
-    const [autoBetEnabled, setAutoBetEnabledState] = useState(() => {
-      const saved = localStorage.getItem("balloonfly_auto_bet");
-      return saved === "true";
-    });
-
-    const [autoCashOutEnabled, setAutoCashOutEnabledState] = useState(() => {
-      const saved = localStorage.getItem("balloonfly_auto_cashout");
-      return saved === "true";
-    });
-
-    const [autoCashOutMultiplier, setAutoCashOutMultiplierState] = useState(
-      () => {
-        const saved = localStorage.getItem("balloonfly_auto_cashout_mult");
-        if (saved) {
-          const mult = parseFloat(saved);
-          if (!isNaN(mult) && mult >= 1.0) {
-            return mult;
-          }
-        }
-        return 1.1;
-      },
-    );
-
-    // Wrapper functions
-    const setBetAmount = useCallback(
-      (amount: number | ((prev: number) => number)) => {
-        const newAmount =
-          typeof amount === "function"
-            ? amount(stateRef.current.betAmount)
-            : amount;
-        const clamped = Math.max(1.0, newAmount);
-        stateRef.current.betAmount = clamped;
-        setBetAmountState(clamped);
-        localStorage.setItem("balloonfly_bet_amount", clamped.toString());
-      },
-      [],
-    );
-
     const setActiveTab = useCallback((tab: "manual" | "auto") => {
-      stateRef.current.activeTab = tab;
       setActiveTabState(tab);
       localStorage.setItem("balloonfly_bet_tab", tab);
     }, []);
 
-    const setAutoBetEnabled = useCallback((enabled: boolean) => {
-      stateRef.current.autoBetEnabled = enabled;
-      setAutoBetEnabledState(enabled);
-      localStorage.setItem("balloonfly_auto_bet", enabled.toString());
-    }, []);
+    // Editable amount input: raw text while focused, committed value
+    // renders formatted. Commits go through the same >= 1.0 clamp as
+    // the +/- and quick-amount buttons; non-numeric input is rejected.
+    const [amountText, setAmountText] = useState(betAmount.toFixed(2));
+    const amountEditingRef = useRef(false);
 
-    const setAutoCashOutEnabled = useCallback((enabled: boolean) => {
-      stateRef.current.autoCashOutEnabled = enabled;
-      setAutoCashOutEnabledState(enabled);
-      localStorage.setItem("balloonfly_auto_cashout", enabled.toString());
-    }, []);
-
-    const setAutoCashOutMultiplier = useCallback((mult: number) => {
-      const clamped = Math.max(1.0, Math.min(1000.0, mult));
-      stateRef.current.autoCashOutMultiplier = clamped;
-      setAutoCashOutMultiplierState(clamped);
-      localStorage.setItem("balloonfly_auto_cashout_mult", clamped.toString());
-    }, []);
-
-    // Sync ref with state
     useEffect(() => {
-      stateRef.current.betAmount = betAmount;
-      stateRef.current.activeTab = activeTab;
-      stateRef.current.autoBetEnabled = autoBetEnabled;
-      stateRef.current.autoCashOutEnabled = autoCashOutEnabled;
-      stateRef.current.autoCashOutMultiplier = autoCashOutMultiplier;
-    }, [
-      betAmount,
-      activeTab,
-      autoBetEnabled,
-      autoCashOutEnabled,
-      autoCashOutMultiplier,
-    ]);
+      if (!amountEditingRef.current) {
+        setAmountText(betAmount.toFixed(2));
+      }
+    }, [betAmount]);
+
+    const handleAmountTextChange = useCallback(
+      (e: React.ChangeEvent<HTMLInputElement>) => {
+        const text = e.target.value;
+        setAmountText(text);
+        const parsed = parseFloat(text);
+        if (!isNaN(parsed)) {
+          onBetAmountChange(parsed);
+        }
+      },
+      [onBetAmountChange],
+    );
 
     const quickAmounts = [10, 20, 50, 100];
 
     const handleIncrement = useCallback(() => {
-      setBetAmount((prev) => prev + 1.0);
-    }, [setBetAmount]);
+      onBetAmountChange(betAmount + 1.0);
+    }, [onBetAmountChange, betAmount]);
 
     const handleDecrement = useCallback(() => {
-      setBetAmount((prev) => Math.max(1.0, prev - 1.0));
-    }, [setBetAmount]);
+      onBetAmountChange(Math.max(1.0, betAmount - 1.0));
+    }, [onBetAmountChange, betAmount]);
 
     const handleQuickAmount = useCallback(
       (amount: number) => {
-        setBetAmount(amount);
+        onBetAmountChange(amount);
       },
-      [setBetAmount],
+      [onBetAmountChange],
     );
 
     const handleAction = useCallback(() => {
@@ -272,8 +221,16 @@ const BettingPanel: React.FC<BettingPanelProps> = React.memo(
               </button>
               <input
                 type="text"
-                value={betAmount.toFixed(2)}
-                readOnly
+                value={amountText}
+                inputMode="decimal"
+                onChange={handleAmountTextChange}
+                onFocus={() => {
+                  amountEditingRef.current = true;
+                }}
+                onBlur={() => {
+                  amountEditingRef.current = false;
+                  setAmountText(betAmount.toFixed(2));
+                }}
                 style={{
                   background: "transparent",
                   border: "none",
@@ -429,7 +386,9 @@ const BettingPanel: React.FC<BettingPanelProps> = React.memo(
                   fontWeight: 700,
                 }}
               >
-                {isActive ? "1.06 XLM" : `${betAmount.toFixed(2)} XLM`}
+                {isActive
+                  ? `${(betAmount * currentMultiplier).toFixed(2)} XLM`
+                  : `${betAmount.toFixed(2)} XLM`}
               </span>
             </button>
           </div>
@@ -468,7 +427,7 @@ const BettingPanel: React.FC<BettingPanelProps> = React.memo(
                 </span>
                 <button
                   type="button"
-                  onClick={() => setAutoBetEnabled(!autoBetEnabled)}
+                  onClick={() => onAutoBetEnabledChange(!autoBetEnabled)}
                   style={{
                     width: "48px",
                     height: "24px",
@@ -527,7 +486,9 @@ const BettingPanel: React.FC<BettingPanelProps> = React.memo(
                 >
                   <button
                     type="button"
-                    onClick={() => setAutoCashOutEnabled(!autoCashOutEnabled)}
+                    onClick={() =>
+                      onAutoCashOutEnabledChange(!autoCashOutEnabled)
+                    }
                     style={{
                       width: "48px",
                       height: "24px",
@@ -563,7 +524,7 @@ const BettingPanel: React.FC<BettingPanelProps> = React.memo(
                     onChange={(e) => {
                       const value = parseFloat(e.target.value);
                       if (!isNaN(value) && value >= 1.0) {
-                        setAutoCashOutMultiplier(value);
+                        onAutoCashOutMultiplierChange(value);
                       }
                     }}
                     disabled={!autoCashOutEnabled}
@@ -600,7 +561,12 @@ const BettingPanel: React.FC<BettingPanelProps> = React.memo(
     // Custom comparison to prevent re-renders unless props actually changed
     return (
       prevProps.isActive === nextProps.isActive &&
-      prevProps.loading === nextProps.loading
+      prevProps.loading === nextProps.loading &&
+      prevProps.betAmount === nextProps.betAmount &&
+      prevProps.currentMultiplier === nextProps.currentMultiplier &&
+      prevProps.autoBetEnabled === nextProps.autoBetEnabled &&
+      prevProps.autoCashOutEnabled === nextProps.autoCashOutEnabled &&
+      prevProps.autoCashOutMultiplier === nextProps.autoCashOutMultiplier
     );
   },
 );
