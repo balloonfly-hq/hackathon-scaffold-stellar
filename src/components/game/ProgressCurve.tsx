@@ -1,4 +1,13 @@
 import React from "react";
+import {
+  CP1_X,
+  CP1_Y,
+  CP2_X,
+  CP2_Y,
+  pointOnCurve,
+  START_X,
+  START_Y,
+} from "./curve";
 
 interface ProgressCurveProps {
   progress: number; // 0-1
@@ -6,45 +15,12 @@ interface ProgressCurveProps {
 }
 
 const ProgressCurve: React.FC<ProgressCurveProps> = ({ progress, color }) => {
-  // Bezier curve from bottom-left to top-right
-  // Start point: (0, 100%)
-  // End point: (100%, 0%)
-  // Control points for smooth curve
-
-  const startX = 0;
-  const startY = 100;
-  const endX = 100;
-  const endY = 0;
-
-  // Bezier curve control points (creating smooth ascending curve)
-  const cp1X = 25;
-  const cp1Y = 75;
-  const cp2X = 65;
-  const cp2Y = 15;
-
-  // Calculate current point on curve based on progress
-  const getPointOnCurve = (t: number) => {
-    const x =
-      Math.pow(1 - t, 3) * startX +
-      3 * Math.pow(1 - t, 2) * t * cp1X +
-      3 * (1 - t) * Math.pow(t, 2) * cp2X +
-      Math.pow(t, 3) * endX;
-
-    const y =
-      Math.pow(1 - t, 3) * startY +
-      3 * Math.pow(1 - t, 2) * t * cp1Y +
-      3 * (1 - t) * Math.pow(t, 2) * cp2Y +
-      Math.pow(t, 3) * endY;
-
-    return { x, y };
-  };
-
-  const currentPoint = getPointOnCurve(progress);
+  const currentPoint = pointOnCurve(progress);
 
   // Create path of curve up to current point (filled)
-  const pathData = `M ${startX} ${startY} 
-                    C ${cp1X} ${cp1Y}, ${cp2X} ${cp2Y}, ${currentPoint.x} ${currentPoint.y}
-                    L ${currentPoint.x} ${startY}
+  const pathData = `M ${START_X} ${START_Y} 
+                    C ${CP1_X} ${CP1_Y}, ${CP2_X} ${CP2_Y}, ${currentPoint.x} ${currentPoint.y}
+                    L ${currentPoint.x} ${START_Y}
                     Z`;
 
   return (
@@ -78,7 +54,7 @@ const ProgressCurve: React.FC<ProgressCurveProps> = ({ progress, color }) => {
       <path d={pathData} fill="url(#curveGradient)" filter="url(#curveGlow)" />
       {/* Linha da curva (borda) */}
       <path
-        d={`M ${startX} ${startY} C ${cp1X} ${cp1Y}, ${cp2X} ${cp2Y}, ${currentPoint.x} ${currentPoint.y}`}
+        d={`M ${START_X} ${START_Y} C ${CP1_X} ${CP1_Y}, ${CP2_X} ${CP2_Y}, ${currentPoint.x} ${currentPoint.y}`}
         fill="none"
         stroke={color}
         strokeWidth="0.3"
