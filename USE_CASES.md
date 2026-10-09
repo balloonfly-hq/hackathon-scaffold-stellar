@@ -7,21 +7,25 @@ Comprehensive guide to all user flows and scenarios in BalloonFly.
 ## 👤 User Personas
 
 ### 1. 🎮 Casual Player
+
 - Plays for fun with small bets
 - Prefers safe, early cash-outs
 - Enjoys social aspect (watching others)
 
 ### 2. 💎 High Roller
+
 - Places large bets
 - Takes calculated risks
 - Studies patterns and history
 
 ### 3. 🤖 Auto-Better
+
 - Uses automatic betting strategies
 - Sets predefined cash-out multipliers
 - Focuses on long-term profit
 
 ### 4. 🔍 Verifier
+
 - Checks provably fair results
 - Validates on-chain data
 - Ensures game integrity
@@ -35,6 +39,7 @@ Comprehensive guide to all user flows and scenarios in BalloonFly.
 **Actor:** New Player
 
 **Flow:**
+
 1. Player visits landing page (/)
 2. Clicks "Play Now" or "Connect Account"
 3. Selects wallet (Freighter, xBull, etc.)
@@ -48,7 +53,7 @@ sequenceDiagram
     participant Landing as Landing Page
     participant Wallet as Stellar Wallet
     participant Game as Game Page
-    
+
     Player->>Landing: Visit /
     Player->>Landing: Click "Play Now"
     Landing->>Wallet: Request connection
@@ -61,6 +66,7 @@ sequenceDiagram
 ```
 
 **Success Criteria:**
+
 - ✅ Wallet connected successfully
 - ✅ Balance displayed in header
 - ✅ Player can see live game
@@ -72,11 +78,13 @@ sequenceDiagram
 **Actor:** Connected Player
 
 **Preconditions:**
+
 - Wallet connected
 - Sufficient XLM balance
 - Round in "Waiting" or "Flying" phase
 
 **Flow:**
+
 1. Player enters bet amount (e.g., 10 XLM)
 2. Optionally sets auto cash-out multiplier
 3. Clicks "Place Bet"
@@ -96,17 +104,19 @@ stateDiagram-v2
     OnChain --> BetConfirmed: Transaction confirmed
     BetConfirmed --> LiveBets: Bet appears in list
     LiveBets --> [*]: Ready to watch/cash out
-    
+
     ApproveSign --> Rejected: Player rejects
     Rejected --> [*]: Bet cancelled
 ```
 
 **Edge Cases:**
+
 - 🔄 **Bet during flight:** Goes to next round (queued)
 - ❌ **Insufficient balance:** Error message shown
 - ⏰ **Round ends:** Bet rejected, try next round
 
 **Success Criteria:**
+
 - ✅ Bet recorded on-chain
 - ✅ Balance updated
 - ✅ Bet visible in sidebar
@@ -118,11 +128,13 @@ stateDiagram-v2
 **Actor:** Player with Active Bet
 
 **Preconditions:**
+
 - Player has active bet in current round
 - Round is "Flying"
 - Balloon hasn't crashed yet
 
 **Flow:**
+
 1. Player monitors multiplier (e.g., 1.00x → 2.45x)
 2. Decides to cash out at 2.45x
 3. Clicks "Cash Out" button
@@ -143,15 +155,16 @@ flowchart TD
     H --> I[Mark bet as 'Cashed Out']
     I --> J[Show in winners list]
     J --> K[End - Success! 🎉]
-    
+
     F -->|No| L[Show error]
     L --> B
-    
+
     B -->|Balloon crashes| M[Too late - Bet lost]
     M --> N[End - Loss 💥]
 ```
 
 **Success Criteria:**
+
 - ✅ Cash-out processed before crash
 - ✅ Correct winnings received
 - ✅ Bet status updated
@@ -163,10 +176,12 @@ flowchart TD
 **Actor:** Player with Active Bet
 
 **Preconditions:**
+
 - Player has active bet
 - Player hasn't cashed out
 
 **Flow:**
+
 1. Round is flying (e.g., 1.00x → 3.89x)
 2. Balloon crashes at 3.89x 💥
 3. All uncashed bets lose
@@ -180,7 +195,7 @@ sequenceDiagram
     participant Game
     participant Contract
     participant UI
-    
+
     Note over Game: Round Flying
     Game->>Player: Multiplier: 1.00x → 3.89x
     Player->>Player: Decides to wait...
@@ -196,6 +211,7 @@ sequenceDiagram
 ```
 
 **Success Criteria:**
+
 - ✅ Bet marked as lost
 - ✅ No payout received
 - ✅ Player can bet in next round
@@ -207,10 +223,12 @@ sequenceDiagram
 **Actor:** Strategic Player
 
 **Preconditions:**
+
 - Wallet connected
 - Sufficient balance for multiple rounds
 
 **Flow:**
+
 1. Player switches to "Automatic" tab
 2. Sets bet amount: `5 XLM`
 3. Sets auto cash-out: `2.00x`
@@ -230,19 +248,20 @@ flowchart LR
     E -->|Yes| F[Auto cash out]
     F --> G[Win: +9.70 XLM]
     G --> H{Auto-bet still ON?}
-    
+
     E -->|No - Crashed before| I[Lose bet]
     I --> J[Loss: -5 XLM]
     J --> H
-    
+
     H -->|Yes| C
     H -->|No - Player stopped| K[End]
-    
+
     style F fill:#10b981
     style I fill:#ef4444
 ```
 
 **Success Criteria:**
+
 - ✅ Bets placed automatically
 - ✅ Cash-outs at exact multiplier
 - ✅ Player can monitor performance
@@ -254,6 +273,7 @@ flowchart LR
 **Actor:** Any Player
 
 **Flow:**
+
 1. Player scrolls to top of game screen
 2. Sees horizontal strip of recent multipliers
 3. Multipliers color-coded:
@@ -270,24 +290,25 @@ graph TD
     C -->|Blue 1.41x| D[Open Modal]
     C -->|Purple 4.77x| D
     C -->|Red 169.62x| D
-    
+
     D --> E[Show Round Details]
     E --> F[Crash Multiplier]
     E --> G[Winners List]
     E --> H[Total Prize Pool]
     E --> I[Timestamp]
     E --> J[Provably Fair Data]
-    
+
     J --> K{Player Action}
     K -->|Verify| L[Show Seeds & Hash]
     K -->|Close| M[Back to Game]
-    
+
     style C fill:#3b82f6
     style D fill:#a855f7
     style L fill:#8b5cf6
 ```
 
 **Success Criteria:**
+
 - ✅ History visible and updated
 - ✅ Color-coding correct
 - ✅ Details accessible
@@ -299,52 +320,42 @@ graph TD
 **Actor:** Skeptical Player
 
 **Preconditions:**
+
 - Round has ended
-- Server seed revealed
 
 **Flow:**
-1. Player clicks "🔒 Provably Fair" button
-2. Modal shows:
-   - Server seed hash (pre-published)
-   - Revealed server seed (after crash)
-   - Client seeds (from first 3 bets)
-   - Combined hash
-   - Crash multiplier calculation
-3. Player can verify independently:
-   ```javascript
-   hash = SHA256(serverSeed + clientSeed1 + clientSeed2 + clientSeed3)
-   multiplier = calculateFromHash(hash)
-   ```
-4. Player confirms calculation matches
+
+1. Player clicks round details or inspects `RoundDetailsModal`
+2. Modal shows the on-chain recorded round data:
+   - **Server Seed Hash**: The 32-byte SHA256 commitment published prior to betting
+   - **Client Seeds**: Entropy contributed by players during the betting window
+   - **Result**: The deterministic crash multiplier recorded on-chain
+   - **Round Stats**: Total bets and total XLM wagered
+3. Player confirms cryptographic commitment:
+   - The contract verifies `SHA256(server_seed) == server_seed_hash` when starting the round, binding the operator before client seeds are gathered.
+   - **Note on Revealed Seed**: In the current contract version (`contracts/balloonfly`), `server_seed_hash` is permanently recorded in contract storage, but the raw `server_seed` preimage is verified and discarded during `start_round` without being written to contract storage. Full client-side re-derivation requires the operator to publish the raw seed off-chain, or for a future contract upgrade to store `server_seed` in `Round` upon `finalize_round`.
 
 ```mermaid
 sequenceDiagram
     actor Player
     participant UI
     participant Contract
-    participant Verifier as Independent Verifier
-    
+
     Note over Contract: Round Ended
-    Player->>UI: Click "🔒 Provably Fair"
+    Player->>UI: Click Round in History
     UI->>Contract: Get round data
-    Contract->>UI: Return seeds & hash
-    
+    Contract->>UI: Return server_seed_hash, client_seeds, crash_multiplier
+
     UI->>Player: Show Modal with:
-    Note over Player,UI: • Server Seed Hash (pre-published)<br/>• Revealed Server Seed<br/>• Client Seeds (3)<br/>• Combined Hash<br/>• Crash Multiplier
-    
-    Player->>Verifier: Copy data to verify
-    Verifier->>Verifier: Calculate:<br/>SHA256(seeds)
-    Verifier->>Verifier: Verify hash matches
-    Verifier->>Verifier: Calculate multiplier
-    Verifier->>Player: ✅ Confirmed Fair!
-    
-    Note over Player: Trust established
+    Note over Player,UI: • Server Seed Hash (committed prior to bets)<br/>• Client Seeds (player entropy)<br/>• Verified Crash Multiplier<br/>• Bet Totals
+    Player->>Player: Confirm commitment & client seeds recorded on-chain
 ```
 
 **Success Criteria:**
-- ✅ All seeds visible
-- ✅ Hash calculation correct
-- ✅ Multiplier verifiable
+
+- ✅ Server seed hash commitment visible
+- ✅ Client seeds recorded on-chain
+- ✅ Crash multiplier verifiable on-chain
 
 ---
 
@@ -353,6 +364,7 @@ sequenceDiagram
 **Actor:** Visitor without Wallet
 
 **Flow:**
+
 1. Visitor opens /game
 2. Sees game running but can't bet
 3. Watches:
@@ -366,7 +378,7 @@ sequenceDiagram
 stateDiagram-v2
     [*] --> LandingPage: Visitor arrives
     LandingPage --> GameSpectator: Navigate to /game
-    
+
     state GameSpectator {
         [*] --> WatchMultiplier
         WatchMultiplier --> SeeBets: View live updates
@@ -374,11 +386,11 @@ stateDiagram-v2
         SeeCashOuts --> ViewHistory: Browse history
         ViewHistory --> WatchMultiplier
     }
-    
+
     GameSpectator --> ConnectPrompt: Click "Connect Wallet"
     ConnectPrompt --> ConnectedPlayer: Approve connection
     ConnectedPlayer --> [*]: Can now bet!
-    
+
     note right of GameSpectator
         Read-only mode
         All data visible
@@ -387,6 +399,7 @@ stateDiagram-v2
 ```
 
 **Success Criteria:**
+
 - ✅ Game visible without connection
 - ✅ Live updates work
 - ✅ Clear prompt to connect
@@ -400,25 +413,25 @@ stateDiagram-v2
 ```mermaid
 stateDiagram-v2
     [*] --> Waiting: Round Created
-    
+
     state Waiting {
         [*] --> AcceptingBets
         AcceptingBets --> CollectSeeds: First 3 bets
         CollectSeeds --> Countdown: 60 seconds
         Countdown --> ReadyToStart: Timer expires
     }
-    
+
     Waiting --> Starting: Start Round
-    
+
     state Starting {
         [*] --> GenerateSeed
         GenerateSeed --> HashSeed
         HashSeed --> CalculateCrash
         CalculateCrash --> BeginFlight
     }
-    
+
     Starting --> Flying: Balloon Takes Off
-    
+
     state Flying {
         [*] --> GrowMultiplier
         GrowMultiplier --> ProcessCashOuts
@@ -426,32 +439,32 @@ stateDiagram-v2
         CheckCrash --> GrowMultiplier: Not yet
         CheckCrash --> Crash: Reached target
     }
-    
+
     Flying --> Crashed: Balloon Pops 💥
-    
+
     state Crashed {
         [*] --> RevealSeed
         RevealSeed --> CalculateWinners
         CalculateWinners --> PayoutWinners
         PayoutWinners --> UpdateHistory
     }
-    
+
     Crashed --> Results: Show Results
-    
+
     state Results {
         [*] --> DisplayCrash
         DisplayCrash --> ShowWinners
         ShowWinners --> ProvablyFair
         ProvablyFair --> Wait5s
     }
-    
+
     Results --> Waiting: New Round (5s delay)
-    
+
     note right of Waiting
         Players place bets
         Late bets queued
     end note
-    
+
     note right of Flying
         1.00x → 1.50x → ???
         Growth: 1+(t^1.55×1.6)
@@ -459,6 +472,7 @@ stateDiagram-v2
 ```
 
 **Phase Durations:**
+
 - ⏰ Waiting: 60 seconds
 - ⚡ Starting: < 1 second
 - 🎈 Flying: Variable (until crash)
@@ -478,7 +492,7 @@ graph LR
     C --> D[Calculate: 100 × 1.50 × 0.97]
     D --> E[Payout: 145.50 XLM]
     E --> F[Profit: +45.50 XLM ✅]
-    
+
     style E fill:#10b981
     style F fill:#10b981
 ```
@@ -492,7 +506,7 @@ graph LR
     C --> D[Calculate: 50 × 5.00 × 0.97]
     D --> E[Payout: 242.50 XLM]
     E --> F[Profit: +192.50 XLM 🎉]
-    
+
     style E fill:#10b981
     style F fill:#10b981
 ```
@@ -505,7 +519,7 @@ graph LR
     B --> C[Crash: 2.34x]
     C --> D[Payout: 0 XLM]
     D --> E[Loss: -200 XLM 💥]
-    
+
     style D fill:#ef4444
     style E fill:#ef4444
 ```
@@ -539,8 +553,9 @@ Total Profit: +46.40 XLM (7 wins, 3 losses)
 ### Scenario A: Multiple Players Same Round
 
 **Setup:**
+
 - Alice bets 10 XLM
-- Bob bets 50 XLM  
+- Bob bets 50 XLM
 - Charlie bets 100 XLM
 - Crash at 3.50x
 
@@ -549,27 +564,28 @@ gantt
     title Round Timeline - Multiple Players
     dateFormat X
     axisFormat %Lx
-    
+
     section Alice
     Bet placed (10 XLM)    :0, 10
     Cash out @ 2.00x       :10, 20
     Wins 19.40 XLM         :20, 30
-    
+
     section Bob
     Bet placed (50 XLM)    :0, 10
     Cash out @ 3.00x       :10, 30
     Wins 145.50 XLM        :30, 40
-    
+
     section Charlie
     Bet placed (100 XLM)   :0, 10
     Waiting...             :10, 35
     Loses (no cash-out)    :35, 40
-    
+
     section Round
     Crash @ 3.50x          :crit, 35, 40
 ```
 
 **Outcome:**
+
 - Alice cashes out at 2.00x → Wins 19.40 XLM ✅
 - Bob cashes out at 3.00x → Wins 145.50 XLM ✅
 - Charlie doesn't cash out → Loses 100 XLM ❌
@@ -577,6 +593,7 @@ gantt
 ### Scenario B: Bet During Flight
 
 **Setup:**
+
 - Round started, multiplier at 1.80x
 - Player tries to place bet
 
@@ -586,7 +603,7 @@ sequenceDiagram
     participant Game
     participant Contract
     participant Queue
-    
+
     Note over Game: Round Flying (1.80x)
     Player->>Game: Click "Place Bet"
     Game->>Contract: Try place_bet()
@@ -594,10 +611,10 @@ sequenceDiagram
     Contract->>Game: Status: Flying
     Game->>Queue: Queue bet for next round
     Queue->>Player: Toast: "Bet placed for next round"
-    
+
     Note over Game: Current round continues
     Note over Queue: Bet waiting...
-    
+
     Game->>Game: Round ends
     Game->>Game: New round starts
     Queue->>Contract: Process queued bet
@@ -605,6 +622,7 @@ sequenceDiagram
 ```
 
 **Outcome:**
+
 - Bet rejected for current round
 - Bet queued for next round
 - Toast message: "Bet placed for next round"
@@ -612,6 +630,7 @@ sequenceDiagram
 ### Scenario C: Network Disconnect
 
 **Setup:**
+
 - Player has active bet
 - Internet disconnects during flight
 
@@ -621,29 +640,30 @@ sequenceDiagram
     participant Frontend
     participant Network
     participant Contract
-    
+
     Player->>Contract: Place bet (10 XLM)
     Note over Contract: Bet stored on-chain
     Contract->>Frontend: Bet confirmed
     Frontend->>Player: Show active bet
-    
+
     Note over Network: Connection lost! 📡❌
     Frontend->>Frontend: Offline mode
-    
+
     Note over Contract: Round continues...
     Contract->>Contract: Crash at 2.50x
     Contract->>Contract: Process results
-    
+
     Note over Network: Connection restored! 📡✅
     Player->>Frontend: Reconnect
     Frontend->>Contract: Fetch latest state
     Contract->>Frontend: Round ended, your bet lost
     Frontend->>Player: Show results
-    
+
     Note over Player: Can see what happened!
 ```
 
 **Outcome:**
+
 - Bet still valid on-chain
 - Player can reconnect and continue
 - If crashed, result visible after reconnect
@@ -653,6 +673,7 @@ sequenceDiagram
 ## 📊 Statistics Tracking
 
 Players can track:
+
 - Total bets placed
 - Win rate (%)
 - Average cash-out multiplier
@@ -673,67 +694,60 @@ sequenceDiagram
     actor Attacker
     participant Frontend
     participant Contract
-    
+
     Attacker->>Frontend: Click "Cash Out" (1st)
     Frontend->>Contract: cash_out(bet_id)
     Contract->>Contract: Check bet status: Active
     Contract->>Contract: Mark as cashed out
     Contract->>Attacker: Payout sent ✅
-    
+
     Attacker->>Frontend: Click "Cash Out" (2nd) 🚨
     Frontend->>Contract: cash_out(bet_id)
     Contract->>Contract: Check bet status: Already cashed
     Contract->>Attacker: Error: Bet already settled ❌
-    
+
     Note over Contract: State prevents double spend
 ```
 
 **Prevention:**
+
 - On-chain state checked
 - First cash-out invalidates bet
 - Second attempt rejected
 
 ### SEC-02: Verify Fair Crash
 
-**Scenario:** Player suspects rigged game
+**Scenario:** Player audits game fairness
 
 ```mermaid
 graph TD
-    A[Before Round] --> B[Server publishes hash]
-    B --> C[Players see hash]
-    C --> D[Round starts]
-    D --> E[Players bet + provide seeds]
-    E --> F[Round crashes]
-    F --> G[Server reveals seed]
-    G --> H{Verify}
-    
-    H -->|Step 1| I[SHA256 revealed == published hash?]
-    I -->|Yes ✅| J[Step 2: Combine seeds]
-    J --> K[hash = SHA256 server + client1 + client2 + client3]
-    K --> L[Step 3: Calculate multiplier from hash]
-    L --> M{Matches crash?}
-    M -->|Yes ✅| N[Game is FAIR! 🎉]
-    M -->|No ❌| O[Report fraud! 🚨]
-    
-    I -->|No ❌| O
-    
-    style N fill:#10b981
-    style O fill:#ef4444
+    A[Before Round] --> B[Server commits server_seed_hash]
+    B --> C[Players observe committed hash on-chain]
+    C --> D[Players bet and contribute client seeds]
+    D --> E[Contract verifies SHA256 server_seed == hash on start]
+    E --> F[Round crashes at deterministic multiplier]
+    F --> G[On-chain state stores hash, client seeds, multiplier]
+    G --> H{Audit}
+    H -->|Commitment Enforced| I[Operator cannot alter outcome after bets ✅]
+    H -->|Seed Preimage| J[Retained off-chain by operator / future contract upgrade]
+
+    style I fill:#10b981
+    style J fill:#f59e0b
 ```
 
-**Solution:**
-1. Get server seed hash (before round)
-2. Round completes
-3. Server seed revealed
-4. Verify: `SHA256(revealed) === hash`
-5. Calculate multiplier from seeds
-6. Confirm crash was predetermined
+**Verification Details:**
+
+1. **Pre-Bet Commitment**: Server publishes `server_seed_hash` before any bets are placed or client seeds are received.
+2. **Contract Enforced Check**: When `start_round` is called, the contract computes `SHA256(server_seed)` and requires it to equal `server_seed_hash`.
+3. **Entropy Injected**: Player-submitted client seeds are bound to the round state on-chain.
+4. **Preimage Storage Status**: Currently, `Round` in the contract stores `server_seed_hash: BytesN<32>` and `client_seeds: Vec<BytesN<32>>`, but does not store the raw `server_seed` preimage on-chain. Independent zero-knowledge recalculation of the crash formula requires the operator to reveal the preimage off-chain (or a future contract upgrade to persist `server_seed` in `Round` on `finalize_round`).
 
 ---
 
 ## 🎓 Learning Path
 
 ### Beginner
+
 ```mermaid
 graph LR
     A[Start] --> B[Connect Wallet]
@@ -741,11 +755,12 @@ graph LR
     C --> D[Cash out @ 1.2x-1.5x]
     D --> E[Understand mechanics]
     E --> F[Ready for more!]
-    
+
     style F fill:#10b981
 ```
 
 ### Intermediate
+
 ```mermaid
 graph LR
     A[Beginner ✅] --> B[Try 2x-5x multipliers]
@@ -753,11 +768,12 @@ graph LR
     C --> D[Observe patterns]
     D --> E[Test auto-bet]
     E --> F[Develop strategy]
-    
+
     style F fill:#a855f7
 ```
 
 ### Advanced
+
 ```mermaid
 graph LR
     A[Intermediate ✅] --> B[Refine strategy]
@@ -765,7 +781,7 @@ graph LR
     C --> D[Verify fairness]
     D --> E[Optimize timing]
     E --> F[Master player! 🏆]
-    
+
     style F fill:#f59e0b
 ```
 
