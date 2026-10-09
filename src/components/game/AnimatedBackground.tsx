@@ -10,6 +10,12 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number | undefined>(undefined);
   const animationTimeRef = useRef<number>(0);
+  const progressRef = useRef<number>(progress);
+
+  // Keep progressRef updated with the latest progress without restarting the canvas loop
+  useEffect(() => {
+    progressRef.current = progress;
+  }, [progress]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -23,6 +29,8 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
       const dpr = window.devicePixelRatio || 1;
       canvas.width = rect.width * dpr;
       canvas.height = rect.height * dpr;
+      // Reset transform before scaling so repeated window resizes do not compound
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.scale(dpr, dpr);
     };
 
@@ -52,6 +60,7 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
       const centerY = height;
       const numLines = 80;
       const maxDistance = Math.sqrt(width * width + height * height);
+      const currentProgress = progressRef.current;
 
       // Draw radial lines
       ctx.strokeStyle = "#1a1d29";
@@ -59,7 +68,7 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
 
       for (let i = 0; i < numLines; i++) {
         const angle = (i / numLines) * Math.PI * 0.75; // 135 degrees (from bottom-left)
-        const distance = maxDistance * (1.2 + progress * 0.3);
+        const distance = maxDistance * (1.2 + currentProgress * 0.3);
 
         // Time-based offset to create parallax movement
         const offset = animationTimeRef.current * 30;
@@ -79,7 +88,7 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
       ctx.lineWidth = 1;
       for (let i = 0; i < numLines; i += 2) {
         const angle = (i / numLines) * Math.PI * 0.75;
-        const distance = maxDistance * (1.2 + progress * 0.3);
+        const distance = maxDistance * (1.2 + currentProgress * 0.3);
         const offset = animationTimeRef.current * 30;
         const currentDistance = distance + offset;
 
@@ -101,11 +110,12 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
 
     return () => {
       window.removeEventListener("resize", resizeCanvas);
-      if (animationFrameRef.current) {
+      if (animationFrameRef.current !== undefined) {
         cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = undefined;
       }
     };
-  }, [progress]);
+  }, []);
 
   return (
     <canvas
