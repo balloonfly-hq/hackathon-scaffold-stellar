@@ -171,6 +171,8 @@ const BetsSidebar: React.FC = () => {
     >
       {/* Navigation Tabs */}
       <div
+        role="tablist"
+        aria-label="Bets sidebar views"
         style={{
           display: "flex",
           background: "#252837",
@@ -181,6 +183,12 @@ const BetsSidebar: React.FC = () => {
         {(["bets", "previous", "top"] as const).map((tab) => (
           <button
             key={tab}
+            type="button"
+            role="tab"
+            id={`tab-${tab}`}
+            aria-selected={activeTab === tab}
+            aria-controls={`tabpanel-${tab}`}
+            tabIndex={activeTab === tab ? 0 : -1}
             onClick={() => setActiveTab(tab)}
             style={{
               flex: 1,
@@ -193,6 +201,7 @@ const BetsSidebar: React.FC = () => {
               fontSize: "14px",
               fontWeight: 500,
               transition: "all 0.2s",
+              outline: "none",
             }}
           >
             {tab === "bets" ? "Bets" : tab === "previous" ? "Previous" : "Top"}
@@ -219,9 +228,9 @@ const BetsSidebar: React.FC = () => {
             }}
           >
             <div style={{ display: "flex", gap: "4px" }}>
-              {["🎈", "🎯", "⭐"].map((emoji, i) => (
+              {["🎈", "🎯", "⭐"].map((emoji) => (
                 <div
-                  key={i}
+                  key={emoji}
                   style={{
                     width: "32px",
                     height: "32px",
