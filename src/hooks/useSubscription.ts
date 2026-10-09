@@ -59,21 +59,28 @@ export function useSubscription(
           paging[id].lastLedgerStart = latestLedgerState.sequence;
         }
 
-        const request: Api.GetEventsRequest = {
-          filters: [
-            {
-              contractIds: [contractId],
-              topics: [[xdr.ScVal.scvSymbol(topic).toXDR("base64")]],
-              type: "contract",
-            },
-          ],
-          limit: 10,
-        };
+        const filters: Api.EventFilter[] = [
+          {
+            contractIds: [contractId],
+            topics: [[xdr.ScVal.scvSymbol(topic).toXDR("base64")]],
+            type: "contract",
+          },
+        ];
 
+        let request: Api.GetEventsRequest;
         if (paging[id].pagingToken) {
-          request.cursor = paging[id].pagingToken;
-        } else if (paging[id].lastLedgerStart) {
-          request.startLedger = paging[id].lastLedgerStart;
+          request = {
+            filters,
+            cursor: paging[id].pagingToken,
+            limit: 10,
+          };
+        } else {
+          request = {
+            filters,
+            startLedger: paging[id].lastLedgerStart ?? 0,
+            endLedger: (paging[id].lastLedgerStart ?? 0) + 10000,
+            limit: 10,
+          };
         }
 
         const response = await server.getEvents(request);
