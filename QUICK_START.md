@@ -19,13 +19,14 @@ Before starting, ensure you have:
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 # Add wasm32 target
-rustup target add wasm32-unknown-unknown
+rustup target add wasm32v1-none
 
 # Install Stellar CLI
 cargo install --locked stellar-cli --features opt
 
 # Install Scaffold Stellar plugin
-stellar install scaffold
+cargo binstall stellar-scaffold-cli
+# Or from source: cargo install stellar-scaffold-cli
 ```
 
 ## 🎯 5-Minute Setup
@@ -49,6 +50,7 @@ npm start
 ```
 
 **What happens:**
+
 1. 🐳 Starts Docker container (Stellar local network)
 2. 🦀 Compiles Rust contract → WASM
 3. 🚀 Deploys contract to local network
@@ -56,6 +58,7 @@ npm start
 5. ⚡ Starts Vite dev server
 
 **Wait for this message:**
+
 ```
 ✅ Successfully generated client for: balloonfly
 [1] ➜  Local:   http://localhost:5173/
@@ -86,7 +89,7 @@ On local network, click **"Fund Account"** button to get test XLM from friendbot
 ### Round Flow
 
 ```
-1. Waiting (30s) → Place your bets
+1. Waiting (60s) → Place your bets
 2. Flying → Multiplier grows (1.00x → ???)
 3. Crash! → Balloon pops at random multiplier
 4. Results → See winners and verify fairness
@@ -94,11 +97,11 @@ On local network, click **"Fund Account"** button to get test XLM from friendbot
 
 ### Betting Strategy
 
-| Strategy | Risk | Potential Reward |
-|----------|------|------------------|
-| Early cash-out (1.2x) | 🟢 Low | Small, consistent wins |
-| Medium (2-5x) | 🟡 Medium | Balanced gameplay |
-| Late (10x+) | 🔴 High | Big wins, rare |
+| Strategy              | Risk      | Potential Reward       |
+| --------------------- | --------- | ---------------------- |
+| Early cash-out (1.2x) | 🟢 Low    | Small, consistent wins |
+| Medium (2-5x)         | 🟡 Medium | Balanced gameplay      |
+| Late (10x+)           | 🔴 High   | Big wins, rare         |
 
 ---
 
@@ -158,6 +161,7 @@ Now that you're set up:
 ### Issue: "Contract not found"
 
 **Solution:** Wait for contract deployment to finish. Look for this log:
+
 ```
 ✅ Successfully generated client for: balloonfly
 ```
@@ -169,6 +173,7 @@ Now that you're set up:
 ### Issue: TypeScript errors
 
 **Solution:** Restart the dev server:
+
 ```bash
 # Ctrl+C to stop, then:
 npm start
@@ -179,16 +184,21 @@ npm start
 ## 💡 Pro Tips
 
 ### Hot Reload
+
 Changes to `.rs` files trigger auto-rebuild. Changes to `.tsx` files hot-reload instantly!
 
 ### Debugger
+
 Use http://localhost:5173/debug to:
+
 - Call contract functions directly
 - Inspect transaction details
 - Test edge cases
 
 ### Network Switching
+
 Edit `environments.toml` to deploy to testnet or mainnet:
+
 ```toml
 [staging.network]
 rpc-url = "https://soroban-testnet.stellar.org"
@@ -199,6 +209,7 @@ rpc-url = "https://soroban-testnet.stellar.org"
 ## 🎯 Success Criteria
 
 You're ready when you can:
+
 - ✅ Connect wallet successfully
 - ✅ Place a bet
 - ✅ See live multiplier updates
@@ -210,4 +221,3 @@ You're ready when you can:
 **Need help?** Check [README.md](./README.md) or open an issue!
 
 Happy flying! 🎈
-
