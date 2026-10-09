@@ -119,38 +119,55 @@ const RenderContractMetadata: React.FC<RenderContractMetadataProps> = ({
           Contract Metadata
         </Label>
         <Card variant="primary">
-          <Text as="span" size="xs">
-            This section contains the metadata of the contract, which is a
-            collection of key-value pairs that provide additional information
-            about the contract. This data is added to the contract during
-            compilation and can be retrieved directly from the WASM file. See{" "}
-            <Link href={metaDocsLink} target="_blank" rel="noopener noreferrer">
-              Contract Metadata Documentation
-            </Link>{" "}
-            for further details.
-          </Text>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "flex-start",
-              marginTop: "1.5rem",
-            }}
-          >
-            <Table
-              breakpoint={300}
-              hideNumberColumn
-              columnLabels={[
-                { id: "type", label: "Type" },
-                { id: "key", label: "Key" },
-                { id: "value", label: "Value" },
-              ]}
-              data={getTableData()}
-              renderItemRow={(item: TableItem) =>
-                renderRow(item.key, item.val, item.metaType)
-              }
-            />
-          </div>
+          {metadata.error ? (
+            <Text
+              as="p"
+              size="xs"
+              style={{ color: "var(--color-status-error, #d9383a)" }}
+            >
+              {metadata.error}
+            </Text>
+          ) : (
+            <>
+              <Text as="span" size="xs">
+                This section contains the metadata of the contract, which is a
+                collection of key-value pairs that provide additional
+                information about the contract. This data is added to the
+                contract during compilation and can be retrieved directly from
+                the WASM file. See{" "}
+                <Link
+                  href={metaDocsLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Contract Metadata Documentation
+                </Link>{" "}
+                for further details.
+              </Text>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "flex-start",
+                  marginTop: "1.5rem",
+                }}
+              >
+                <Table
+                  breakpoint={300}
+                  hideNumberColumn
+                  columnLabels={[
+                    { id: "type", label: "Type" },
+                    { id: "key", label: "Key" },
+                    { id: "value", label: "Value" },
+                  ]}
+                  data={getTableData()}
+                  renderItemRow={(item: TableItem) =>
+                    renderRow(item.key, item.val, item.metaType)
+                  }
+                />
+              </div>
+            </>
+          )}
         </Card>
       </Box>
     </>

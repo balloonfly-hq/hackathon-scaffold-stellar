@@ -1,22 +1,14 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Server } from "@stellar/stellar-sdk/rpc";
 import { network } from "../../contracts/util";
 import { Contract } from "@stellar/stellar-sdk";
-import { decode_stream, encode, initialize } from "./StellarXdr";
-import {
-  CONTRACT_SECTIONS,
-  ContractData,
-  ContractSectionName,
-} from "../types/types";
-import { prettifyJsonString } from "./prettifyJsonString";
+import { getWasmContractData } from "./getWasmContractData";
 
 export interface ContractMetadata {
   contractmetav0?: { [key: string]: string };
   contractenvmetav0?: { [key: string]: string };
   wasmHash?: string;
   wasmBinary?: string;
+  error?: string;
 }
 
 export const loadContractMetadata = async (contractId: string) => {
@@ -30,23 +22,99 @@ export const loadContractMetadata = async (contractId: string) => {
       throw new Error(`Failed to load WASM binary for hash ${wasmHash}`);
     }
 
-    const wasmData = await getWasmContractData(wasm);
+    const wasmDataResult = await getWasmContractData(wasm);
+    if (!wasmDataResult.ok) {
+      console.error(
+        `Failed to decode WASM contract data for ${contractId}:`,
+        wasmDataResult.error,
+      );
+      return {
+        wasmHash,
+        wasmBinary: wasm.toString("hex"),
+        error: wasmDataResult.error,
+      } as ContractMetadata;
+    }
 
-    const metadata = {
-      contractmetav0:
-        wasmData && wasmData.contractmetav0
-          ? (wasmData.contractmetav0 as unknown)
-          : undefined,
+    const wasmData = wasmDataResult.data;
 
-      contractenvmetav0:
-        wasmData && wasmData.contractenvmetav0
-          ? (wasmData.contractenvmetav0 as unknown)
-          : undefined,
+    let contractmetav0: Record<string, string> | undefined;
+    if (wasmData.contractmetav0?.json?.length) {
+      const sectionContent: Record<string, string> = {};
+      wasmData.contractmetav0.json.forEach((jsonStr) => {
+        try {
+          const parsed = JSON.parse(jsonStr) as Record<
+            string,
+            { key?: string; val?: string } | Record<string, string>
+          >;
+          Object.keys(parsed).forEach((key) => {
+            const entry = parsed[key];
+            if (
+              entry &&
+              typeof entry === "object" &&
+              "key" in entry &&
+              "val" in entry
+            ) {
+              if (entry.key && entry.val !== undefined) {
+                sectionContent[entry.key] = String(entry.val);
+              }
+            } else if (entry && typeof entry === "object") {
+              Object.keys(entry).forEach((innerKey) => {
+                sectionContent[innerKey] = String(
+                  (entry as Record<string, string>)[innerKey],
+                );
+              });
+            }
+          });
+        } catch {
+          // ignore malformed inner json
+        }
+      });
+      contractmetav0 = sectionContent;
+    }
+
+    let contractenvmetav0: Record<string, string> | undefined;
+    if (wasmData.contractenvmetav0?.json?.length) {
+      const sectionContent: Record<string, string> = {};
+      wasmData.contractenvmetav0.json.forEach((jsonStr) => {
+        try {
+          const parsed = JSON.parse(jsonStr) as Record<
+            string,
+            { key?: string; val?: string } | Record<string, string>
+          >;
+          Object.keys(parsed).forEach((key) => {
+            const entry = parsed[key];
+            if (
+              entry &&
+              typeof entry === "object" &&
+              "key" in entry &&
+              "val" in entry
+            ) {
+              if (entry.key && entry.val !== undefined) {
+                sectionContent[entry.key] = String(entry.val);
+              }
+            } else if (entry && typeof entry === "object") {
+              Object.keys(entry).forEach((innerKey) => {
+                sectionContent[innerKey] = String(
+                  (entry as Record<string, string>)[innerKey],
+                );
+              });
+            }
+          });
+        } catch {
+          // ignore malformed inner json
+        }
+      });
+      contractenvmetav0 = sectionContent;
+    }
+
+    const metadata: ContractMetadata = {
+      contractmetav0,
+      contractenvmetav0,
       wasmHash,
       wasmBinary: wasm.toString("hex"),
     };
 
-    return { ...metadata } as ContractMetadata;
+    return metadata;
   } catch (error) {
     console.error(`Failed to load contract metadata for ${contractId}:`, error);
     return {};
@@ -85,95 +153,5 @@ const loadWasmBinary = async (wasmHash: string) => {
   } catch (error) {
     console.error(`Failed to load contract metadata for ${wasmHash}:`, error);
     return null;
-  }
-};
-
-export const getWasmContractData = async (wasmBytes: Buffer) => {
-  try {
-    const mod = await WebAssembly.compile(new Uint8Array(wasmBytes));
-    const result: Record<ContractSectionName, ContractData> = {
-      contractmetav0: {},
-      contractenvmetav0: {},
-      contractspecv0: {},
-    };
-
-    // Make sure the StellarXdr is available
-    await initialize();
-
-    for (const sectionName of CONTRACT_SECTIONS) {
-      const sections = WebAssembly.Module.customSections(mod, sectionName);
-
-      if (sections.length > 0) {
-        for (let i = 0; i < sections.length; i++) {
-          const sectionData = sectionResult(sectionName, sections[i]);
-
-          if (sectionData) {
-            let sectionContent = {};
-            sectionData.json.forEach((json) => {
-              const sectionDataJson = JSON.parse(json);
-              Object.keys(sectionDataJson).map((key) =>
-                sectionDataJson[key].key
-                  ? (sectionContent = {
-                      ...sectionContent,
-
-                      [sectionDataJson[key].key]: sectionDataJson[key].val,
-                    })
-                  : Object.keys(sectionDataJson[key]).map((innerKey) => {
-                      sectionContent = {
-                        ...sectionContent,
-                        [innerKey]: sectionDataJson[key][innerKey],
-                      };
-                    }),
-              );
-            });
-
-            result[sectionName] = {
-              ...result[sectionName],
-              ...sectionContent,
-            };
-          }
-        }
-      }
-    }
-
-    return result;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (e) {
-    return null;
-  }
-};
-
-const sectionResult = (
-  sectionName: ContractSectionName,
-  section: ArrayBuffer,
-) => {
-  const sectionData = new Uint8Array(section);
-  const sectionXdr = Buffer.from(sectionData).toString("base64");
-  const { json, xdr } = getJsonAndXdr(sectionName, sectionXdr);
-
-  return {
-    xdr,
-    json,
-    // TODO: add text format
-  };
-};
-
-const TYPE_VARIANT: Record<ContractSectionName, string> = {
-  contractenvmetav0: "ScEnvMetaEntry",
-  contractmetav0: "ScMetaEntry",
-  contractspecv0: "ScSpecEntry",
-};
-
-const getJsonAndXdr = (sectionName: ContractSectionName, xdr: string) => {
-  try {
-    const jsonStringArray = decode_stream(TYPE_VARIANT[sectionName], xdr);
-
-    return {
-      json: jsonStringArray.map((s) => prettifyJsonString(s)),
-      xdr: jsonStringArray.map((s) => encode(TYPE_VARIANT[sectionName], s)),
-    };
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (e) {
-    return { json: [], xdr: [] };
   }
 };

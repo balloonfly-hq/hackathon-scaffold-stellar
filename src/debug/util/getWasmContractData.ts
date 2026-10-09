@@ -1,7 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import * as StellarXdr from "./StellarXdr";
 import { prettifyJsonString } from "./prettifyJsonString";
 import {
@@ -10,54 +6,11 @@ import {
   ContractSectionName,
 } from "../types/types";
 
-export const getWasmContractData = async (wasmBytes: Buffer) => {
-  try {
-    const mod = await WebAssembly.compile(new Uint8Array(wasmBytes));
+export type WasmContractData = Record<ContractSectionName, ContractData>;
 
-    const result: Record<ContractSectionName, ContractData> = {
-      contractmetav0: {},
-      contractenvmetav0: {},
-      contractspecv0: {},
-    };
-
-    // Make sure the StellarXdr is available
-    await StellarXdr.initialize();
-
-    for (const sectionName of CONTRACT_SECTIONS) {
-      const sections = WebAssembly.Module.customSections(mod, sectionName);
-
-      if (sections.length > 0) {
-        for (let i = 0; i < sections.length; i++) {
-          const sectionData = sectionResult(sectionName, sections[i]);
-
-          if (sectionData) {
-            result[sectionName] = sectionData;
-          }
-        }
-      }
-    }
-
-    return result;
-  } catch (e) {
-    console.error("Error getting wasm contract data:", e);
-    return null;
-  }
-};
-
-const sectionResult = (
-  sectionName: ContractSectionName,
-  section: ArrayBuffer,
-) => {
-  const sectionData = new Uint8Array(section);
-  const sectionXdr = Buffer.from(sectionData).toString("base64");
-  const { json, xdr } = getJsonAndXdr(sectionName, sectionXdr);
-
-  return {
-    xdr,
-    json,
-    // TODO: add text format
-  };
-};
+export type WasmContractDataResult =
+  | { ok: true; data: WasmContractData }
+  | { ok: false; error: string };
 
 const TYPE_VARIANT: Record<ContractSectionName, string> = {
   contractenvmetav0: "ScEnvMetaEntry",
@@ -65,7 +18,10 @@ const TYPE_VARIANT: Record<ContractSectionName, string> = {
   contractspecv0: "ScSpecEntry",
 };
 
-const getJsonAndXdr = (sectionName: ContractSectionName, xdr: string) => {
+const getJsonAndXdr = (
+  sectionName: ContractSectionName,
+  xdr: string,
+): { json: string[]; xdr: string[]; error?: string } => {
   try {
     const jsonStringArray = StellarXdr.decode_stream(
       TYPE_VARIANT[sectionName],
@@ -79,6 +35,76 @@ const getJsonAndXdr = (sectionName: ContractSectionName, xdr: string) => {
       ),
     };
   } catch (e) {
-    return { json: [], xdr: [] };
+    const message = e instanceof Error ? e.message : String(e);
+    return {
+      json: [],
+      xdr: [],
+      error: `Failed to decode XDR for section ${sectionName}: ${message}`,
+    };
   }
+};
+
+const sectionResult = (
+  sectionName: ContractSectionName,
+  section: ArrayBuffer,
+): { sectionData: ContractData; error?: string } => {
+  const sectionDataBytes = new Uint8Array(section);
+  const sectionXdr = Buffer.from(sectionDataBytes).toString("base64");
+  const { json, xdr, error } = getJsonAndXdr(sectionName, sectionXdr);
+
+  return {
+    sectionData: {
+      xdr,
+      json,
+    },
+    error,
+  };
+};
+
+export const getWasmContractData = async (
+  wasmBytes: Buffer,
+): Promise<WasmContractDataResult> => {
+  let mod: WebAssembly.Module;
+  try {
+    mod = await WebAssembly.compile(new Uint8Array(wasmBytes));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return {
+      ok: false,
+      error: `Failed to compile WebAssembly binary: ${message}`,
+    };
+  }
+
+  const result: WasmContractData = {
+    contractmetav0: {},
+    contractenvmetav0: {},
+    contractspecv0: {},
+  };
+
+  try {
+    // Make sure the StellarXdr is available
+    await StellarXdr.initialize();
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return {
+      ok: false,
+      error: `Failed to initialize Stellar XDR decoder: ${message}`,
+    };
+  }
+
+  for (const sectionName of CONTRACT_SECTIONS) {
+    const sections = WebAssembly.Module.customSections(mod, sectionName);
+
+    if (sections.length > 0) {
+      for (let i = 0; i < sections.length; i++) {
+        const { sectionData, error } = sectionResult(sectionName, sections[i]);
+        if (error) {
+          return { ok: false, error };
+        }
+        result[sectionName] = sectionData;
+      }
+    }
+  }
+
+  return { ok: true, data: result };
 };
